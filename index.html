@@ -6,10 +6,7 @@
     <title>Encrypted Terminal</title>
     <style>
         body { margin: 0; padding: 0; background: #0a0a0a; color: #7e5af0; font-family: 'Courier New', monospace; user-select: none; }
-        #_L { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0a0a0a; display: flex; justify-content: center; align-items: center; z-index: 9999; }
-        #_1 { background: #000; border: 1px solid #333; color: #7e5af0; padding: 15px; font-size: 1.5rem; text-align: center; font-family: inherit; letter-spacing: 5px; outline: 0; }
-        #_1:focus { border-color: #7e5af0; }
-        #_A { display: none; max-width: 600px; margin: 40px auto; padding: 20px; }
+        #_A { display: block; max-width: 600px; margin: 40px auto; padding: 20px; }
         textarea { width: 100%; min-height: 120px; height: auto; background: #000; color: #7e5af0; border: 1px solid #333; padding: 10px; font-family: inherit; box-sizing: border-box; margin-bottom: 10px; outline: 0; word-break: break-all; overflow-y: hidden; resize: none; }
         textarea:focus { border-color: #7e5af0; }
         .b { display: flex; gap: 10px; margin-bottom: 20px; }
@@ -20,8 +17,6 @@
 </head>
 <body>
 
-    <div id="_L"><input type="password" id="_1" placeholder="ENTER CODE" autofocus autocomplete="off"></div>
-
     <div id="_A">
         <div class="b">
             <button id="_btnM" onclick="_T()">MODE: ENCRYPT</button>
@@ -31,31 +26,30 @@
         <textarea id="_3" readonly placeholder="Live output will appear here..." autocomplete="off"></textarea>
     </div>
 
+    <!-- Shared cipher engine (single source of truth, also @require'd by the Tampermonkey userscript) -->
+    <script src="uaaa-core.js"></script>
+
     <script>
         /* Anti-snoop protections */
         document.oncontextmenu = e => { e.preventDefault(); return !1; };
         document.onkeydown = e => { if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || (e.ctrlKey && e.keyCode === 85)) { e.preventDefault(); return !1; } };
 
-        /* Obfuscated Core Constants */
-        const _p = '\x55\x41\x41\x41'; 
-        let _m = !0; 
-        
-        // Handle explicit resets and incoming API URL requests on load
-        window.addEventListener('\x6c\x6f\x61\x64', () => {
-            document.getElementById('_1').value = '';
+        /* Default key used by the on-page UI and the public API */
+        const _p = '\x55\x41\x41\x41';
+        let _m = !0;
+
+        window.addEventListener('load', () => {
             document.getElementById('_2').value = '';
             document.getElementById('_3').value = '';
-            
-            // Check URL API Engine
+
+            // Check URL API Engine (used by the "Site" link injected by the userscript,
+            // and by TerminalAPI.generateLink())
             const u = new URLSearchParams(window.location.search);
-            const d = u.get('\x64'), m = u.get('\x6d'), k = u.get('\x6b') || _p;
-            
+            const d = u.get('d'), m = u.get('m'), k = u.get('k') || _p;
+
             if (d && k === _p) {
-                // Auto-unlock terminal if verified via API routing
-                document.getElementById('_L').style.display = '\x6e\x6f\x6e\x65'; 
-                document.getElementById('_A').style.display = '\x62\x6c\x6f\x63\x6b'; 
-                _m = !(m === '\x64\x65\x63');
-                document.getElementById('_btnM').innerText = _m ? '\x4d\x4f\x44\x45\x3a\x20\x45\x4e\x43\x52\x59\x50\x54' : '\x4d\x4f\x44\x45\x3a\x20\x44\x45\x43\x52\x59\x50\x54';
+                _m = !(m === 'dec');
+                document.getElementById('_btnM').innerText = _m ? 'MODE: ENCRYPT' : 'MODE: DECRYPT';
                 document.getElementById('_2').value = decodeURIComponent(d);
                 _H(document.getElementById('_2'));
                 _P();
@@ -65,24 +59,6 @@
             }
         });
 
-        const _i = document.getElementById('_1');
-        _i.addEventListener('\x6b\x65\x79\x70\x72\x65\x73\x73', e => { 
-            if (e.key === '\x45\x6e\x74\x65\x72') { 
-                if (_i.value === _p) { 
-                    document.getElementById('_L').style.display = '\x6e\x6f\x6e\x65'; 
-                    document.getElementById('_A').style.display = '\x62\x6c\x6f\x63\x6b'; 
-                    document.getElementById('_2').focus();
-                } else { 
-                    _i.value = ''; _i.placeholder = '\x44\x45\x4e\x49\x45\x44'; 
-                    _i.style.borderColor = '#ff3333'; _i.style.color = '#ff3333'; 
-                    setTimeout(() => { 
-                        _i.placeholder = '\x45\x4e\x54\x45\x52\x20\x43\x4f\x44\x45'; 
-                        _i.style.borderColor = '#333'; _i.style.color = '#7e5af0'; 
-                    }, 1500); 
-                } 
-            } 
-        });
-
         function _H(el) {
             el.style.height = 'auto';
             el.style.height = el.scrollHeight + 'px';
@@ -90,76 +66,14 @@
 
         function _T() {
             _m = !_m;
-            document.getElementById('_btnM').innerText = _m ? '\x4d\x4f\x44\x45\x3a\x20\x45\x4e\x43\x52\x59\x50\x54' : '\x4d\x4f\x44\x45\x3a\x20\x44\x45\x43\x52\x59\x50\x54';
+            document.getElementById('_btnM').innerText = _m ? 'MODE: ENCRYPT' : 'MODE: DECRYPT';
             _P();
         }
 
-        document.getElementById('_2').addEventListener('\x69\x6e\x70\x75\x74', function() {
+        document.getElementById('_2').addEventListener('input', function() {
             _H(this);
             _P();
         });
-
-        // Core Pipeline Cryptographic Engine
-        function _C(t, k, e) {
-            const _s = '\x55\x41\x41\x41'; 
-            if (e) {
-                let src = Array.from(t), dict = {}, _tc = [], phrase = src[0], code = 256;
-                for (let i = 1; i < src.length; i++) {
-                    let c = src[i], p = phrase + c;
-                    if (dict[p] !== undefined) { phrase = p; } 
-                    else {
-                        _tc.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
-                        if (code < 65535) dict[p] = code++;
-                        phrase = c;
-                    }
-                }
-                if (phrase) _tc.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
-
-                let b = [Math.floor(Math.random() * 65536)], c = b[0];
-                for (let i = 0; i < _tc.length; i++) {
-                    let w = _tc[i] ^ ((k.charCodeAt(i % k.length) + c + i) % 65536);
-                    b.push(w); c = (c + w) % 65536;
-                }
-
-                let r = '';
-                for (let v of b) {
-                    let p = v.toString(2).padStart(16, '0');
-                    for (let j of p) r += j === '0' ? '\x55' : '\x41';
-                }
-                return _s + r;
-            } else {
-                let x = t.replace(/[^UA]/gi, '').toUpperCase();
-                if (!x.startsWith(_s)) throw new Error();
-                let q = x.substring(_s.length);
-                
-                let rm = q.length % 16; 
-                if (rm !== 0) q = q.substring(0, q.length - rm);
-                if (!q) return '';
-
-                let b = [];
-                for (let i = 0; i < q.length; i += 16) 
-                    b.push(parseInt(q.substring(i, i + 16).replace(/U/g, '0').replace(/A/g, '1'), 2));
-                
-                let c = b[0], _dc = [];
-                for (let i = 1; i < b.length; i++) {
-                    _dc.push(b[i] ^ ((k.charCodeAt((i - 1) % k.length) + c + (i - 1)) % 65536));
-                    c = (c + b[i]) % 65536;
-                }
-                if (_dc.length === 0) return '';
-
-                let dict = {}, currChar = String.fromCharCode(_dc[0]), oldPhrase = currChar, out = [currChar], code = 256;
-                for (let i = 1; i < _dc.length; i++) {
-                    let currCode = _dc[i], phrase;
-                    if (currCode < 256) { phrase = String.fromCharCode(currCode); } 
-                    else { phrase = dict[currCode] ? dict[currCode] : (oldPhrase + currChar); }
-                    out.push(phrase);
-                    currChar = phrase.charAt(0);
-                    if (code < 65535) dict[code++] = oldPhrase + currChar;
-                    oldPhrase = phrase;
-                }
-                return out.join('');
-            }
-        }
 
         function _P() {
             let i = document.getElementById('_2').value, o = document.getElementById('_3'), s = document.getElementById('_S');
@@ -168,17 +82,17 @@
                 _H(o);
                 return;
             }
-            try { 
-                o.value = _C(i, _p, _m); 
-            } catch (x) { 
+            try {
+                o.value = _C(i, _p, _m);
+            } catch (x) {
                 if (!_m && i.trim().length > 3) {
-                    s.innerText = '\x49\x4e\x56\x41\x4c\x49\x44\x20\x43\x49\x50\x48\x45\x52\x20\x53\x49\x47\x4e\x41\x54\x55\x52\x45';
+                    s.innerText = 'INVALID CIPHER SIGNATURE';
                 }
             }
             _H(o);
         }
 
-        /* 
+        /*
            =========================================================
            PUBLIC API SPECIFICATION FOR INTEGRATIONS & MESSAGING APPS
            =========================================================
