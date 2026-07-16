@@ -10,26 +10,25 @@
         #_1 { background: #000; border: 1px solid #333; color: #7e5af0; padding: 15px; font-size: 1.5rem; text-align: center; font-family: inherit; letter-spacing: 5px; outline: 0; }
         #_1:focus { border-color: #7e5af0; }
         #_A { display: none; max-width: 600px; margin: 40px auto; padding: 20px; }
-        textarea { width: 100%; height: 180px; background: #000; color: #7e5af0; border: 1px solid #333; padding: 10px; font-family: inherit; box-sizing: border-box; resize: vertical; margin-bottom: 10px; outline: 0; word-break: break-all; }
+        textarea { width: 100%; min-height: 120px; height: auto; background: #000; color: #7e5af0; border: 1px solid #333; padding: 10px; font-family: inherit; box-sizing: border-box; margin-bottom: 10px; outline: 0; word-break: break-all; overflow-y: hidden; resize: none; }
         textarea:focus { border-color: #7e5af0; }
         .b { display: flex; gap: 10px; margin-bottom: 20px; }
-        button { flex: 1; padding: 15px; background: #000; color: #7e5af0; border: 1px solid #333; cursor: pointer; font-family: inherit; text-transform: uppercase; font-weight: bold; }
+        button { flex: 1; padding: 15px; background: #000; color: #7e5af0; border: 1px solid #7e5af0; cursor: pointer; font-family: inherit; text-transform: uppercase; font-weight: bold; letter-spacing: 2px; transition: 0.2s; }
         button:hover { background: #7e5af0; color: #000; }
-        #_S { color: #ff3333; margin-bottom: 10px; text-align: center; min-height: 20px; }
+        #_S { color: #ff3333; margin-bottom: 10px; text-align: center; min-height: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div id="_L"><input type="password" id="_1" placeholder="ENTER CODE" autofocus></div>
+    <div id="_L"><input type="password" id="_1" placeholder="ENTER CODE" autofocus autocomplete="off"></div>
 
     <div id="_A">
-        <div id="_S"></div>
-        <textarea id="_2" placeholder="Input text or cipher..."></textarea>
         <div class="b">
-            <button onclick="_P(!0)">Encrypt</button>
-            <button onclick="_P(!1)">Decrypt</button>
+            <button id="_btnM" onclick="_T()">MODE: ENCRYPT</button>
         </div>
-        <textarea id="_3" readonly placeholder="Output..."></textarea>
+        <div id="_S"></div>
+        <textarea id="_2" placeholder="Type or paste payload here..." autocomplete="off"></textarea>
+        <textarea id="_3" readonly placeholder="Live output will appear here..." autocomplete="off"></textarea>
     </div>
 
     <script>
@@ -37,13 +36,26 @@
         document.oncontextmenu = e => { e.preventDefault(); return !1; };
         document.onkeydown = e => { if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || (e.ctrlKey && e.keyCode === 85)) { e.preventDefault(); return !1; } };
 
-        /* Obfuscated Logic */
-        const _p = '\x70\x61\x73\x73\x77\x6f\x72\x64', _i = document.getElementById('_1');
+        /* Obfuscated Core */
+        const _p = '\x55\x41\x41\x41'; 
+        let _m = !0; 
+        
+        // Clear all fields strictly on reload
+        window.addEventListener('\x6c\x6f\x61\x64', () => {
+            document.getElementById('_1').value = '';
+            document.getElementById('_2').value = '';
+            document.getElementById('_3').value = '';
+            _H(document.getElementById('_2'));
+            _H(document.getElementById('_3'));
+        });
+
+        const _i = document.getElementById('_1');
         _i.addEventListener('\x6b\x65\x79\x70\x72\x65\x73\x73', e => { 
             if (e.key === '\x45\x6e\x74\x65\x72') { 
                 if (_i.value === _p) { 
                     document.getElementById('_L').style.display = '\x6e\x6f\x6e\x65'; 
                     document.getElementById('_A').style.display = '\x62\x6c\x6f\x63\x6b'; 
+                    document.getElementById('_2').focus();
                 } else { 
                     _i.value = ''; _i.placeholder = '\x44\x45\x4e\x49\x45\x44'; 
                     _i.style.borderColor = '#ff3333'; _i.style.color = '#ff3333'; 
@@ -55,18 +67,50 @@
             } 
         });
 
+        // Auto-scaling textarea logic
+        function _H(el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        }
+
+        function _T() {
+            _m = !_m;
+            document.getElementById('_btnM').innerText = _m ? '\x4d\x4f\x44\x45\x3a\x20\x45\x4e\x43\x52\x59\x50\x54' : '\x4d\x4f\x44\x45\x3a\x20\x44\x45\x43\x52\x59\x50\x54';
+            _P();
+        }
+
+        document.getElementById('_2').addEventListener('\x69\x6e\x70\x75\x74', function() {
+            _H(this);
+            _P();
+        });
+
+        // Compression-integrated Ciphering Block
         function _C(t, k, e) {
-            const _s = '\x55\x41\x41\x41\x41'; 
+            const _s = '\x55\x41\x41\x41'; 
             if (e) {
-                let _te = new window['\x54\x65\x78\x74\x45\x6e\x63\x6f\x64\x65\x72']().encode(t);
-                let b = [Math.floor(Math.random() * 256)], c = b[0];
-                for (let i = 0; i < _te.length; i++) {
-                    let w = _te[i] ^ ((k.charCodeAt(i % k.length) + c + i) % 256);
-                    b.push(w); c = (c + w) % 256;
+                // High-performance tokenization layer for pattern optimization
+                let src = Array.from(t), dict = {}, _tc = [], phrase = src[0], code = 256;
+                for (let i = 1; i < src.length; i++) {
+                    let c = src[i], p = phrase + c;
+                    if (dict[p] !== undefined) { phrase = p; } 
+                    else {
+                        _tc.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
+                        if (code < 65535) dict[p] = code++;
+                        phrase = c;
+                    }
                 }
+                if (phrase) _tc.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
+
+                // 16-bit dynamic chaining sequence matrix
+                let b = [Math.floor(Math.random() * 65536)], c = b[0];
+                for (let i = 0; i < _tc.length; i++) {
+                    let w = _tc[i] ^ ((k.charCodeAt(i % k.length) + c + i) % 65536);
+                    b.push(w); c = (c + w) % 65536;
+                }
+
                 let r = '';
                 for (let v of b) {
-                    let p = v.toString(2).padStart(8, '0');
+                    let p = v.toString(2).padStart(16, '0');
                     for (let j of p) r += j === '0' ? '\x55' : '\x41';
                 }
                 return _s + r;
@@ -74,25 +118,52 @@
                 let x = t.replace(/[^UA]/gi, '').toUpperCase();
                 if (!x.startsWith(_s)) throw new Error();
                 let q = x.substring(_s.length);
-                if (q.length % 8 !== 0 || !q) throw new Error();
+                
+                let rm = q.length % 16; 
+                if (rm !== 0) q = q.substring(0, q.length - rm);
+                if (!q) return '';
+
                 let b = [];
-                for (let i = 0; i < q.length; i += 8) 
-                    b.push(parseInt(q.substring(i, i + 8).replace(/U/g, '0').replace(/A/g, '1'), 2));
-                let c = b[0], db = [];
+                for (let i = 0; i < q.length; i += 16) 
+                    b.push(parseInt(q.substring(i, i + 16).replace(/U/g, '0').replace(/A/g, '1'), 2));
+                
+                let c = b[0], _dc = [];
                 for (let i = 1; i < b.length; i++) {
-                    db.push(b[i] ^ ((k.charCodeAt((i - 1) % k.length) + c + (i - 1)) % 256));
-                    c = (c + b[i]) % 256;
+                    _dc.push(b[i] ^ ((k.charCodeAt((i - 1) % k.length) + c + (i - 1)) % 65536));
+                    c = (c + b[i]) % 65536;
                 }
-                return new window['\x54\x65\x78\x74\x44\x65\x63\x6f\x64\x65\x72']().decode(new Uint8Array(db));
+                if (_dc.length === 0) return '';
+
+                // Structural structural unpacking logic matching the optimization layer
+                let dict = {}, currChar = String.fromCharCode(_dc[0]), oldPhrase = currChar, out = [currChar], code = 256;
+                for (let i = 1; i < _dc.length; i++) {
+                    let currCode = _dc[i], phrase;
+                    if (currCode < 256) { phrase = String.fromCharCode(currCode); } 
+                    else { phrase = dict[currCode] ? dict[currCode] : (oldPhrase + currChar); }
+                    out.push(phrase);
+                    currChar = phrase.charAt(0);
+                    if (code < 65535) dict[code++] = oldPhrase + currChar;
+                    oldPhrase = phrase;
+                }
+                return out.join('');
             }
         }
 
-        function _P(e) {
+        function _P() {
             let i = document.getElementById('_2').value, o = document.getElementById('_3'), s = document.getElementById('_S');
             s.innerText = ''; o.value = '';
-            if (!i.trim()) { s.innerText = '\x45\x4d\x50\x54\x59'; return; }
-            try { o.value = _C(i, _p, e); } 
-            catch (x) { s.innerText = '\x43\x4f\x52\x52\x55\x50\x54\x45\x44\x20\x44\x41\x54\x41'; }
+            if (!i.trim()) {
+                _H(o);
+                return;
+            }
+            try { 
+                o.value = _C(i, _p, _m); 
+            } catch (x) { 
+                if (!_m && i.trim().length > 3) {
+                    s.innerText = '\x49\x4e\x56\x41\x4c\x49\x44\x20\x43\x49\x50\x48\x45\x52\x20\x53\x49\x47\x4e\x41\x54\x55\x52\x45';
+                }
+            }
+            _H(o);
         }
     </script>
 </body>
