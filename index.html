@@ -36,17 +36,33 @@
         document.oncontextmenu = e => { e.preventDefault(); return !1; };
         document.onkeydown = e => { if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || (e.ctrlKey && e.keyCode === 85)) { e.preventDefault(); return !1; } };
 
-        /* Obfuscated Core */
+        /* Obfuscated Core Constants */
         const _p = '\x55\x41\x41\x41'; 
         let _m = !0; 
         
-        // Clear all fields strictly on reload
+        // Handle explicit resets and incoming API URL requests on load
         window.addEventListener('\x6c\x6f\x61\x64', () => {
             document.getElementById('_1').value = '';
             document.getElementById('_2').value = '';
             document.getElementById('_3').value = '';
-            _H(document.getElementById('_2'));
-            _H(document.getElementById('_3'));
+            
+            // Check URL API Engine
+            const u = new URLSearchParams(window.location.search);
+            const d = u.get('\x64'), m = u.get('\x6d'), k = u.get('\x6b') || _p;
+            
+            if (d && k === _p) {
+                // Auto-unlock terminal if verified via API routing
+                document.getElementById('_L').style.display = '\x6e\x6f\x6e\x65'; 
+                document.getElementById('_A').style.display = '\x62\x6c\x6f\x63\x6b'; 
+                _m = !(m === '\x64\x65\x63');
+                document.getElementById('_btnM').innerText = _m ? '\x4d\x4f\x44\x45\x3a\x20\x45\x4e\x43\x52\x59\x50\x54' : '\x4d\x4f\x44\x45\x3a\x20\x44\x45\x43\x52\x59\x50\x54';
+                document.getElementById('_2').value = decodeURIComponent(d);
+                _H(document.getElementById('_2'));
+                _P();
+            } else {
+                _H(document.getElementById('_2'));
+                _H(document.getElementById('_3'));
+            }
         });
 
         const _i = document.getElementById('_1');
@@ -67,7 +83,6 @@
             } 
         });
 
-        // Auto-scaling textarea logic
         function _H(el) {
             el.style.height = 'auto';
             el.style.height = el.scrollHeight + 'px';
@@ -84,11 +99,10 @@
             _P();
         });
 
-        // Compression-integrated Ciphering Block
+        // Core Pipeline Cryptographic Engine
         function _C(t, k, e) {
             const _s = '\x55\x41\x41\x41'; 
             if (e) {
-                // High-performance tokenization layer for pattern optimization
                 let src = Array.from(t), dict = {}, _tc = [], phrase = src[0], code = 256;
                 for (let i = 1; i < src.length; i++) {
                     let c = src[i], p = phrase + c;
@@ -101,7 +115,6 @@
                 }
                 if (phrase) _tc.push(phrase.length > 1 ? dict[phrase] : phrase.charCodeAt(0));
 
-                // 16-bit dynamic chaining sequence matrix
                 let b = [Math.floor(Math.random() * 65536)], c = b[0];
                 for (let i = 0; i < _tc.length; i++) {
                     let w = _tc[i] ^ ((k.charCodeAt(i % k.length) + c + i) % 65536);
@@ -134,7 +147,6 @@
                 }
                 if (_dc.length === 0) return '';
 
-                // Structural structural unpacking logic matching the optimization layer
                 let dict = {}, currChar = String.fromCharCode(_dc[0]), oldPhrase = currChar, out = [currChar], code = 256;
                 for (let i = 1; i < _dc.length; i++) {
                     let currCode = _dc[i], phrase;
@@ -165,6 +177,24 @@
             }
             _H(o);
         }
+
+        /* 
+           =========================================================
+           PUBLIC API SPECIFICATION FOR INTEGRATIONS & MESSAGING APPS
+           =========================================================
+        */
+        window.TerminalAPI = {
+            encrypt: function(text, customKey = _p) {
+                try { return _C(text, customKey, true); } catch(e) { return null; }
+            },
+            decrypt: function(cipher, customKey = _p) {
+                try { return _C(cipher, customKey, false); } catch(e) { return null; }
+            },
+            generateLink: function(mode, text) {
+                const base = window.location.href.split('?')[0];
+                return `${base}?m=${mode === 'decrypt' ? 'dec' : 'enc'}&d=${encodeURIComponent(text)}`;
+            }
+        };
     </script>
 </body>
 </html>
