@@ -5,7 +5,7 @@
     <p>
         Another unsecure shitty text Encryption 
         <br>
-    ## WARNING THIS PROJECT IS ENTIRELY VIBECODED AND USELESS BECAUSE ITS MADE FOR FUN !!!
+       WARNING THIS PROJECT IS ENTIRELY VIBECODED AND USELESS BECAUSE ITS MADE FOR FUN !!!
     </p>
 </div>
 
