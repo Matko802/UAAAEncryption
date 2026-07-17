@@ -123,21 +123,24 @@
             _P();
         });
 
-        function _P() {
+        // The UI processing function must now be async to handle Web Crypto Promises
+        async function _P() {
             let i = document.getElementById('_2').value, o = document.getElementById('_3'), s = document.getElementById('_S'), copyBtn = document.getElementById('_btnCopy');
             s.innerText = ''; o.value = ''; copyBtn.style.display = 'none'; copyBtn.style.color = '#fff'; copyBtn.innerText = 'Copy';
             if (!i.trim()) { _H(o); return; }
             
             try {
-                o.value = _C(i, _p, _m);
+                o.value = await _C(i, _p, _m);
                 if (o.value.trim()) copyBtn.style.display = 'block';
             } catch (x) {
                 let errMsg = '';
                 if (!_m) {
                     if (x.message.includes('Invalid cipher signature')) {
                         errMsg = 'INVALID CIPHER - Expected format: UAAA followed by Base64 characters';
-                    } else if (x.message.includes('Invalid Base64')) {
-                        errMsg = 'INVALID INPUT - Malformed Base64 payload';
+                    } else if (x.message.includes('Invalid Base64') || x.message.includes('short')) {
+                        errMsg = 'INVALID INPUT - Malformed or truncated AES payload';
+                    } else if (x.message.includes('Authentication failed')) {
+                        errMsg = 'DECRYPTION ERROR - Wrong key or corrupted data';
                     } else {
                         errMsg = 'DECRYPTION ERROR - ' + x.message;
                     }
@@ -148,6 +151,35 @@
             }
             _H(o);
         }
+
+        /*
+           =========================================================
+           PUBLIC API SPECIFICATION FOR INTEGRATIONS & MESSAGING APPS
+           =========================================================
+        */
+        window.TerminalAPI = {
+            encrypt: async function(text, customKey = _p) {
+                try {
+                    return await _C(text, customKey, true);
+                } catch(e) {
+                    console.error('TerminalAPI.encrypt error:', e.message);
+                    return null;
+                }
+            },
+            decrypt: async function(cipher, customKey = _p) {
+                try {
+                    return await _C(cipher, customKey, false);
+                } catch(e) {
+                    console.error('TerminalAPI.decrypt error:', e.message);
+                    return null;
+                }
+            },
+            generateLink: function(mode, text) {
+                if (typeof text !== 'string') return null;
+                const base = window.location.href.split('?')[0];
+                return `${base}?m=${mode === 'decrypt' ? 'dec' : 'enc'}&d=${encodeURIComponent(text)}`;
+            }
+        };
     </script>
 </body>
 </html>
