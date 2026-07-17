@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UAAADecryptor
 // @namespace    http://tampermonkey.net/
-// @version      0.0.2
+// @version      0.0.3
 // @description  UAAAEncryption custom encryptor/decryptor
 // @author       Matko802
 // @match        *://*/*
@@ -17,22 +17,67 @@
     const CIPHER_REGEX = /(UAAA[UA]+)/gi;
     const CRYPTO_KEY = '\x55\x41\x41\x41'; // "UAAA"
 
-    // The _C() engine is no longer here. It is injected automatically by the @require tag above.
-
-    function applyStyle(el, color, bg, border) {
-        el.style.color = color;
-        el.style.backgroundColor = bg;
-        el.style.border = `1px solid ${border}`;
-        el.style.padding = '2px 6px';
-        el.style.borderRadius = '0px';
-        el.style.fontSize = '0.75em';
-        el.style.fontFamily = 'Courier New, monospace';
-        el.style.fontWeight = 'bold';
-        el.style.cursor = 'pointer';
-        el.style.outline = 'none';
-        el.style.display = 'inline-block';
-        el.style.userSelect = 'none';
-    }
+    // Inject styles for better UI
+    const styleSheet = document.createElement('style');
+    styleSheet.textContent = `
+        .uaaa-btn-group {
+            display: inline-flex;
+            gap: 6px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .uaaa-btn {
+            padding: 4px 8px;
+            border-radius: 0;
+            font-size: 0.75em;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            outline: none;
+            user-select: none;
+            border: 1px solid #cc3d4d;
+            background: #000;
+            color: #fff;
+            transition: 0.2s;
+        }
+        .uaaa-btn:hover {
+            background: #cc3d4d;
+            color: #000;
+        }
+        .uaaa-btn-active {
+            background: #cc3d4d;
+            color: #000;
+            border-color: #cc3d4d;
+        }
+        .uaaa-btn-success {
+            background: #2ed573;
+            color: #000;
+            border-color: #2ed573;
+        }
+        .uaaa-btn-error {
+            background: #ff3333;
+            color: #fff;
+            border-color: #ff3333;
+        }
+        .uaaa-link-btn {
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid #505050;
+            background: #000;
+            color: #fff;
+            padding: 4px 8px;
+            font-size: 0.75em;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .uaaa-link-btn:hover {
+            background: #505050;
+            color: #fff;
+        }
+    `;
+    document.head.appendChild(styleSheet);
 
     function convertTextNode(node) {
         const text = node.nodeValue;
@@ -57,24 +102,19 @@
 
             const btnGroup = document.createElement('span');
             btnGroup.className = 'uaaa-btn-group';
-            btnGroup.style.display = 'inline-flex';
-            btnGroup.style.gap = '5px';
-            btnGroup.style.marginLeft = '8px';
-            btnGroup.style.verticalAlign = 'middle';
 
             const decBtn = document.createElement('button');
-            decBtn.className = 'uaaa-action-dec';
-            decBtn.innerText = '🔓 Decrypt';
-            applyStyle(decBtn, '#7e5af0', '#000000', '#7e5af0');
+            decBtn.className = 'uaaa-btn';
+            decBtn.innerText = '🔓';
+            decBtn.title = 'Decrypt cipher text';
 
             const infoBtn = document.createElement('a');
-            infoBtn.className = 'uaaa-action-info';
-            infoBtn.innerText = 'ℹ️ Site';
+            infoBtn.className = 'uaaa-link-btn';
+            infoBtn.innerText = 'ℹ️';
             infoBtn.href = `${ENCRYPTOR_URL}?m=dec&d=${encodeURIComponent(cipherBlob)}`;
             infoBtn.target = '_blank';
             infoBtn.rel = 'noopener noreferrer';
-            applyStyle(infoBtn, '#00bfa5', '#000000', '#00bfa5');
-            infoBtn.style.textDecoration = 'none';
+            infoBtn.title = 'Open in UAAAEncryption';
 
             let decryptedCache = null;
             let isDecrypted = false;
@@ -87,26 +127,41 @@
                 if (!isDecrypted) {
                     if (!decryptedCache) {
                         try {
-                            // Using the _C function loaded from your GitHub raw file
-                            if (typeof _C === 'function') {
-                                decryptedCache = _C(cipherBlob, CRYPTO_KEY, false);
-                            } else {
+                            if (typeof _C !== 'function') {
+                                decBtn.innerText = '⚠️';
+                                decBtn.className = 'uaaa-btn uaaa-btn-error';
+                                decBtn.title = 'Decryption engine failed to load';
                                 console.error("UAAA API Error: _C function not loaded from GitHub.");
+                                return;
                             }
+                            decryptedCache = _C(cipherBlob, CRYPTO_KEY, false);
                         } catch (err) {
-                            console.error("UAAA API Error:", err);
+                            decBtn.innerText = '❌';
+                            decBtn.className = 'uaaa-btn uaaa-btn-error';
+                            decBtn.title = 'Invalid cipher text';
+                            console.error("UAAA Decryption Error:", err.message);
+                            return;
                         }
                     }
                     if (decryptedCache) {
                         node.nodeValue = originalTextValue.replace(matches[0], decryptedCache);
-                        decBtn.innerText = '🔒 Cipher';
-                        applyStyle(decBtn, '#2ed573', '#000000', '#2ed573');
+                        decBtn.innerText = '✓';
+                        decBtn.className = 'uaaa-btn uaaa-btn-success';
+                        decBtn.title = 'Click to re-encrypt';
+                        setTimeout(() => {
+                            if (isDecrypted) {
+                                decBtn.innerText = '🔒';
+                                decBtn.className = 'uaaa-btn uaaa-btn-active';
+                                decBtn.title = 'Re-encrypt to hide';
+                            }
+                        }, 1500);
                         isDecrypted = true;
                     }
                 } else {
                     node.nodeValue = originalTextValue;
-                    decBtn.innerText = '🔓 Decrypt';
-                    applyStyle(decBtn, '#7e5af0', '#000000', '#7e5af0');
+                    decBtn.innerText = '🔓';
+                    decBtn.className = 'uaaa-btn';
+                    decBtn.title = 'Decrypt cipher text';
                     isDecrypted = false;
                 }
             });
@@ -134,20 +189,25 @@
 
     parseDOMTree(document.body);
 
+    let mutationTimeout;
     const dynamicObserver = new MutationObserver((records) => {
-        for (const record of records) {
-            if (record.type === 'characterData') {
-                convertTextNode(record.target);
-            } else if (record.type === 'childList') {
-                record.addedNodes.forEach(addedNode => {
-                    if (addedNode.nodeType === Node.ELEMENT_NODE) {
-                        parseDOMTree(addedNode);
-                    } else if (addedNode.nodeType === Node.TEXT_NODE) {
-                        convertTextNode(addedNode);
-                    }
-                });
+        // Debounce DOM updates to improve performance
+        clearTimeout(mutationTimeout);
+        mutationTimeout = setTimeout(() => {
+            for (const record of records) {
+                if (record.type === 'characterData') {
+                    convertTextNode(record.target);
+                } else if (record.type === 'childList') {
+                    record.addedNodes.forEach(addedNode => {
+                        if (addedNode.nodeType === Node.ELEMENT_NODE) {
+                            parseDOMTree(addedNode);
+                        } else if (addedNode.nodeType === Node.TEXT_NODE) {
+                            convertTextNode(addedNode);
+                        }
+                    });
+                }
             }
-        }
+        }, 50);
     });
 
     dynamicObserver.observe(document.body, {

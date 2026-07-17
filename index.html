@@ -5,25 +5,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Encrypted Terminal</title>
     <style>
-        body { margin: 0; padding: 0; background: #0a0a0a; color: #7e5af0; font-family: 'Courier New', monospace; user-select: none; }
+        body { margin: 0; padding: 0; background: #0a0a0a; color: #cc3d4d; font-family: 'Courier New', monospace; user-select: none; }
         #_A { display: block; max-width: 600px; margin: 40px auto; padding: 20px; }
-        textarea { width: 100%; min-height: 120px; height: auto; background: #000; color: #7e5af0; border: 1px solid #333; padding: 10px; font-family: inherit; box-sizing: border-box; margin-bottom: 10px; outline: 0; word-break: break-all; overflow-y: hidden; resize: none; }
-        textarea:focus { border-color: #7e5af0; }
-        .b { display: flex; gap: 10px; margin-bottom: 20px; }
-        button { flex: 1; padding: 15px; background: #000; color: #7e5af0; border: 1px solid #7e5af0; cursor: pointer; font-family: inherit; text-transform: uppercase; font-weight: bold; letter-spacing: 2px; transition: 0.2s; }
-        button:hover { background: #7e5af0; color: #000; }
-        #_S { color: #ff3333; margin-bottom: 10px; text-align: center; min-height: 20px; font-weight: bold; }
+        textarea { width: 100%; min-height: 120px; height: auto; background: #000; color: #fff; border: 1px solid #333; padding: 10px; font-family: inherit; box-sizing: border-box; margin-bottom: 10px; outline: 0; word-break: break-all; overflow-y: hidden; resize: none; }
+        textarea:focus { border-color: #cc3d4d; }
+        button { flex: 1; min-width: 150px; padding: 15px; background: #000; color: #cc3d4d; border: 1px solid #cc3d4d; cursor: pointer; font-family: inherit; text-transform: uppercase; font-weight: bold; letter-spacing: 2px; transition: 0.2s; }
+        button:hover { background: #cc3d4d; color: #000; }
+        button:active { transform: scale(0.98); }
+        #_S { color: #ff3333; margin-bottom: 10px; text-align: center; min-height: 20px; font-weight: bold; font-size: 0.9em; word-break: break-word; }
+        .slider-container { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+        .toggle-slider { flex: 1; position: relative; height: 50px; background: #000; border: 1px solid #cc3d4d; border-radius: 0; cursor: pointer; overflow: hidden; }
+        .toggle-slider-labels { display: flex; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 2; }
+        .toggle-slider-label { flex: 1; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold; font-size: 0.9em; letter-spacing: 2px; text-transform: uppercase; pointer-events: none; }
+        .toggle-slider-thumb { position: absolute; top: 0; left: 0; width: 50%; height: 100%; background: #cc3d4d; border-radius: 0; transition: 0.3s; cursor: pointer; z-index: 1; }
+        .toggle-slider.active .toggle-slider-thumb { left: 50%; }
+        .slider-label { color: #cc3d4d; font-family: 'Courier New', monospace; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; font-size: 0.85em; display: none; }
+        .textarea-wrapper { position: relative; display: block; border: 1px solid #333; background: #000; margin-bottom: 10px; }
+        .textarea-wrapper:focus-within { border-color: #cc3d4d; }
+        .textarea-wrapper textarea { border: none; margin-bottom: 0; }
+        .textarea-btn { position: absolute; bottom: 10px; padding: 6px 8px; font-size: 0.85em; background: rgba(0, 0, 0, 0.5); border: none; color: #fff; flex: none; letter-spacing: 0; text-transform: none; font-weight: bold; cursor: pointer; transition: 0.2s; user-select: none; }
+        .textarea-btn:hover { color: #000; background: #cc3d4d; }
+        .textarea-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        #_btnPaste { right: 10px; }
+        #_btnCopy { right: 10px; }
     </style>
 </head>
 <body>
 
     <div id="_A">
-        <div class="b">
-            <button id="_btnM" onclick="_T()">MODE: ENCRYPT</button>
+        <div class="slider-container">
+            <div class="toggle-slider" id="_slider" onclick="_T()">
+                <div class="toggle-slider-labels">
+                    <div class="toggle-slider-label">ENCRYPT</div>
+                    <div class="toggle-slider-label">DECRYPT</div>
+                </div>
+                <div class="toggle-slider-thumb"></div>
+            </div>
         </div>
         <div id="_S"></div>
-        <textarea id="_2" placeholder="Type or paste payload here..." autocomplete="off"></textarea>
-        <textarea id="_3" readonly placeholder="Live output will appear here..." autocomplete="off"></textarea>
+        <div class="textarea-wrapper">
+            <textarea id="_2" placeholder="Type or paste payload here..." autocomplete="off"></textarea>
+            <button id="_btnPaste" class="textarea-btn" onclick="_PST()">Paste</button>
+        </div>
+        <div id="_textarea-wrapper" class="textarea-wrapper">
+            <textarea id="_3" readonly placeholder="Live output will appear here..." autocomplete="off"></textarea>
+            <button id="_btnCopy" class="textarea-btn" onclick="_CP()" style="display: none;">Copy</button>
+        </div>
     </div>
 
     <!-- Shared cipher engine (single source of truth, also @require'd by the Tampermonkey userscript) -->
@@ -49,7 +76,12 @@
 
             if (d && k === _p) {
                 _m = !(m === 'dec');
-                document.getElementById('_btnM').innerText = _m ? 'MODE: ENCRYPT' : 'MODE: DECRYPT';
+                const slider = document.getElementById('_slider');
+                if (_m) {
+                    slider.classList.remove('active');
+                } else {
+                    slider.classList.add('active');
+                }
                 document.getElementById('_2').value = decodeURIComponent(d);
                 _H(document.getElementById('_2'));
                 _P();
@@ -66,8 +98,54 @@
 
         function _T() {
             _m = !_m;
-            document.getElementById('_btnM').innerText = _m ? 'MODE: ENCRYPT' : 'MODE: DECRYPT';
+            const slider = document.getElementById('_slider');
+            if (_m) {
+                slider.classList.remove('active');
+            } else {
+                slider.classList.add('active');
+            }
             _P();
+        }
+
+        function _CP() {
+            let output = document.getElementById('_3').value;
+            if (!output.trim()) return;
+            const btn = document.getElementById('_btnCopy');
+            navigator.clipboard.writeText(output).then(() => {
+                const originalText = btn.innerText;
+                btn.innerText = '✓';
+                btn.style.color = '#2ed573';
+                btn.style.background = 'rgba(0, 0, 0, 0.5)';
+                setTimeout(() => { 
+                    btn.innerText = originalText; 
+                    btn.style.color = '#fff';
+                    btn.style.background = 'rgba(0, 0, 0, 0.5)';
+                }, 2000);
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                document.getElementById('_S').innerText = 'COPY FAILED';
+            });
+        }
+
+        function _PST() {
+            navigator.clipboard.readText().then(text => {
+                const input = document.getElementById('_2');
+                input.value = text;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                const btn = document.getElementById('_btnPaste');
+                const originalText = btn.innerText;
+                btn.innerText = '✓';
+                btn.style.color = '#2ed573';
+                btn.style.background = 'rgba(0, 0, 0, 0.5)';
+                setTimeout(() => { 
+                    btn.innerText = originalText; 
+                    btn.style.color = '#fff';
+                    btn.style.background = 'rgba(0, 0, 0, 0.5)';
+                }, 2000);
+            }).catch(err => {
+                console.error('Paste failed:', err);
+                document.getElementById('_S').innerText = 'PASTE FAILED - Check browser permissions';
+            });
         }
 
         document.getElementById('_2').addEventListener('input', function() {
@@ -76,18 +154,29 @@
         });
 
         function _P() {
-            let i = document.getElementById('_2').value, o = document.getElementById('_3'), s = document.getElementById('_S');
-            s.innerText = ''; o.value = '';
+            let i = document.getElementById('_2').value, o = document.getElementById('_3'), s = document.getElementById('_S'), copyBtn = document.getElementById('_btnCopy');
+            s.innerText = ''; o.value = ''; copyBtn.style.display = 'none'; copyBtn.style.color = '#fff'; copyBtn.style.background = 'rgba(0, 0, 0, 0.5)'; copyBtn.innerText = 'Copy';
             if (!i.trim()) {
                 _H(o);
                 return;
             }
             try {
                 o.value = _C(i, _p, _m);
+                if (o.value.trim()) copyBtn.style.display = 'block';
             } catch (x) {
-                if (!_m && i.trim().length > 3) {
-                    s.innerText = 'INVALID CIPHER SIGNATURE';
+                let errMsg = '';
+                if (!_m) {
+                    if (x.message.includes('Invalid cipher signature')) {
+                        errMsg = 'INVALID CIPHER - Expected format: UAAA followed by U/A characters';
+                    } else if (x.message.includes('TypeError')) {
+                        errMsg = 'INVALID INPUT - Cipher must be a valid string';
+                    } else {
+                        errMsg = 'DECRYPTION ERROR - ' + x.message;
+                    }
+                } else {
+                    errMsg = 'ENCRYPTION ERROR - ' + x.message;
                 }
+                s.innerText = errMsg;
             }
             _H(o);
         }
@@ -99,12 +188,25 @@
         */
         window.TerminalAPI = {
             encrypt: function(text, customKey = _p) {
-                try { return _C(text, customKey, true); } catch(e) { return null; }
+                try {
+                    if (typeof text !== 'string') throw new TypeError('Text must be a string');
+                    return _C(text, customKey, true);
+                } catch(e) {
+                    console.error('TerminalAPI.encrypt error:', e.message);
+                    return null;
+                }
             },
             decrypt: function(cipher, customKey = _p) {
-                try { return _C(cipher, customKey, false); } catch(e) { return null; }
+                try {
+                    if (typeof cipher !== 'string') throw new TypeError('Cipher must be a string');
+                    return _C(cipher, customKey, false);
+                } catch(e) {
+                    console.error('TerminalAPI.decrypt error:', e.message);
+                    return null;
+                }
             },
             generateLink: function(mode, text) {
+                if (typeof text !== 'string') return null;
                 const base = window.location.href.split('?')[0];
                 return `${base}?m=${mode === 'decrypt' ? 'dec' : 'enc'}&d=${encodeURIComponent(text)}`;
             }
