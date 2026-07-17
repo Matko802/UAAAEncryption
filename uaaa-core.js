@@ -37,7 +37,7 @@ async function _deriveKey(password) {
 }
 
 async function _C(t, k, e) {
-    const _s = '\x55\x41\x41\x41'; // Magic: "UAAA"
+    const _s = '\x55\x41\x41\x41\x41'; // Magic: "UAAAA"
     
     // Input validation
     if (typeof t !== 'string') throw new TypeError('Input must be a string');
