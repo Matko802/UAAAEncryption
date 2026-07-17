@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UAAADecryptor
 // @namespace    http://tampermonkey.net/
-// @version      0.0.7
+// @version      0.0.8
 // @description  UAAAEncryption custom encryptor/decryptor (AES-GCM Edition)
 // @author       Matko802
 // @match        *://*/*
@@ -14,8 +14,8 @@
     'use strict';
 
     const ENCRYPTOR_URL = 'https://matko802.github.io/UAAAEncryption/';
-    const CIPHER_REGEX = /UAAA[A-Za-z0-9+/]+={0,2}/g;
-    const CRYPTO_KEY = '\x55\x41\x41\x41'; // "UAAA"
+    const CIPHER_REGEX = /UAAAA[A-Za-z0-9+/]+={0,2}/g;
+    const CRYPTO_KEY = '\x55\x41\x41\x41\x41'; // "UAAAA"
 
     function injectStyles() {
         if (document.getElementById('uaaa-styles')) return;
@@ -79,7 +79,6 @@
         let isDecrypted = false;
         const originalTextValue = node.nodeValue;
 
-        // Make the event listener asynchronous
         decBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -94,9 +93,8 @@
                             return;
                         }
                         
-                        decBtn.innerText = '⌛'; // Display loading state while awaiting Promise
+                        decBtn.innerText = '⌛';
                         
-                        // Await the Web Crypto API result
                         decryptedCache = await _C(cipherBlob, CRYPTO_KEY, false);
                     } catch (err) {
                         decBtn.innerText = '❌';
