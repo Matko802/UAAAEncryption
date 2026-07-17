@@ -1,11 +1,11 @@
 <div align="center">
     <img src="Assets/logo/UA.png"
         title="UAAAEncryption" alt="UAAAEncryption logo" width="120" />
-    <h1>UAAAEncryption</h1>
+    <h1>UAAA Encryption</h1>
     <p>
         Another unsecure shitty text Encryption 
         <br>
-        WARNING THIS PROJECT IS ENTIRELY VIBECODED AND USELESS BECAUSE ITS MADE FOR FUN !!!
+    ## WARNING THIS PROJECT IS ENTIRELY VIBECODED AND USELESS BECAUSE ITS MADE FOR FUN !!!
     </p>
 </div>
 
