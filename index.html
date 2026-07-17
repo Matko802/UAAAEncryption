@@ -135,8 +135,8 @@
                 let errMsg = '';
                 if (!_m) {
                     if (x.message.includes('Invalid cipher signature')) {
-                        errMsg = 'INVALID CIPHER - Expected format: UAAAA followed by Base64 characters';
-                    } else if (x.message.includes('Invalid Base64') || x.message.includes('short')) {
+                        errMsg = 'INVALID CIPHER - Expected format: UAAAA followed by U and A characters';
+                    } else if (x.message.includes('Invalid UA payload') || x.message.includes('short')) {
                         errMsg = 'INVALID INPUT - Malformed or truncated AES payload';
                     } else if (x.message.includes('Authentication failed')) {
                         errMsg = 'DECRYPTION ERROR - Wrong key or corrupted data';
