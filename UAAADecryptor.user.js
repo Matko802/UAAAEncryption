@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         UAAADecryptor
 // @namespace    http://tampermonkey.net/
-// @version      0.0.8
-// @description  UAAAEncryption custom encryptor/decryptor (AES-GCM Edition)
+// @version      0.0.9
+// @description  UAAAEncryption custom encryptor/decryptor (AES-GCM + UA Encoding)
 // @author       Matko802
 // @match        *://*/*
 // @require      https://raw.githubusercontent.com/Matko802/UAAAEncryption/main/uaaa-core.js
@@ -14,7 +14,7 @@
     'use strict';
 
     const ENCRYPTOR_URL = 'https://matko802.github.io/UAAAEncryption/';
-    const CIPHER_REGEX = /UAAAA[A-Za-z0-9+/]+={0,2}/g;
+    const CIPHER_REGEX = /UAAAA[UA]+/g;
     const CRYPTO_KEY = '\x55\x41\x41\x41\x41'; // "UAAAA"
 
     function injectStyles() {
