@@ -19,19 +19,16 @@
         .toggle-slider-label { flex: 1; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold; font-size: 0.9em; letter-spacing: 2px; text-transform: uppercase; pointer-events: none; }
         .toggle-slider-thumb { position: absolute; top: 0; left: 0; width: 50%; height: 100%; background: #cc3d4d; border-radius: 0; transition: 0.3s; cursor: pointer; z-index: 1; }
         .toggle-slider.active .toggle-slider-thumb { left: 50%; }
-        .slider-label { color: #cc3d4d; font-family: 'Courier New', monospace; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; font-size: 0.85em; display: none; }
         .textarea-wrapper { position: relative; display: block; border: 1px solid #333; background: #000; margin-bottom: 10px; }
         .textarea-wrapper:focus-within { border-color: #cc3d4d; }
         .textarea-wrapper textarea { border: none; margin-bottom: 0; }
         .textarea-btn { position: absolute; bottom: 10px; padding: 6px 8px; font-size: 0.85em; background: rgba(0, 0, 0, 0.5); border: none; color: #fff; flex: none; letter-spacing: 0; text-transform: none; font-weight: bold; cursor: pointer; transition: 0.2s; user-select: none; }
         .textarea-btn:hover { color: #000; background: #cc3d4d; }
-        .textarea-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         #_btnPaste { right: 10px; }
         #_btnCopy { right: 10px; }
     </style>
 </head>
 <body>
-
     <div id="_A">
         <div class="slider-container">
             <div class="toggle-slider" id="_slider" onclick="_T()">
@@ -53,15 +50,12 @@
         </div>
     </div>
 
-    <!-- Shared cipher engine (single source of truth, also @require'd by the Tampermonkey userscript) -->
     <script src="uaaa-core.js"></script>
 
     <script>
-        /* Anti-snoop protections */
         document.oncontextmenu = e => { e.preventDefault(); return !1; };
         document.onkeydown = e => { if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || (e.ctrlKey && e.keyCode === 85)) { e.preventDefault(); return !1; } };
 
-        /* Default key used by the on-page UI and the public API */
         const _p = '\x55\x41\x41\x41';
         let _m = !0;
 
@@ -69,19 +63,14 @@
             document.getElementById('_2').value = '';
             document.getElementById('_3').value = '';
 
-            // Check URL API Engine (used by the "Site" link injected by the userscript,
-            // and by TerminalAPI.generateLink())
             const u = new URLSearchParams(window.location.search);
             const d = u.get('d'), m = u.get('m'), k = u.get('k') || _p;
 
             if (d && k === _p) {
                 _m = !(m === 'dec');
                 const slider = document.getElementById('_slider');
-                if (_m) {
-                    slider.classList.remove('active');
-                } else {
-                    slider.classList.add('active');
-                }
+                if (_m) slider.classList.remove('active');
+                else slider.classList.add('active');
                 document.getElementById('_2').value = decodeURIComponent(d);
                 _H(document.getElementById('_2'));
                 _P();
@@ -99,11 +88,8 @@
         function _T() {
             _m = !_m;
             const slider = document.getElementById('_slider');
-            if (_m) {
-                slider.classList.remove('active');
-            } else {
-                slider.classList.add('active');
-            }
+            if (_m) slider.classList.remove('active');
+            else slider.classList.add('active');
             _P();
         }
 
@@ -115,16 +101,8 @@
                 const originalText = btn.innerText;
                 btn.innerText = '✓';
                 btn.style.color = '#2ed573';
-                btn.style.background = 'rgba(0, 0, 0, 0.5)';
-                setTimeout(() => { 
-                    btn.innerText = originalText; 
-                    btn.style.color = '#fff';
-                    btn.style.background = 'rgba(0, 0, 0, 0.5)';
-                }, 2000);
-            }).catch(err => {
-                console.error('Copy failed:', err);
-                document.getElementById('_S').innerText = 'COPY FAILED';
-            });
+                setTimeout(() => { btn.innerText = originalText; btn.style.color = '#fff'; }, 2000);
+            }).catch(() => document.getElementById('_S').innerText = 'COPY FAILED');
         }
 
         function _PST() {
@@ -136,16 +114,8 @@
                 const originalText = btn.innerText;
                 btn.innerText = '✓';
                 btn.style.color = '#2ed573';
-                btn.style.background = 'rgba(0, 0, 0, 0.5)';
-                setTimeout(() => { 
-                    btn.innerText = originalText; 
-                    btn.style.color = '#fff';
-                    btn.style.background = 'rgba(0, 0, 0, 0.5)';
-                }, 2000);
-            }).catch(err => {
-                console.error('Paste failed:', err);
-                document.getElementById('_S').innerText = 'PASTE FAILED - Check browser permissions';
-            });
+                setTimeout(() => { btn.innerText = originalText; btn.style.color = '#fff'; }, 2000);
+            }).catch(() => document.getElementById('_S').innerText = 'PASTE FAILED - Check browser permissions');
         }
 
         document.getElementById('_2').addEventListener('input', function() {
@@ -155,11 +125,9 @@
 
         function _P() {
             let i = document.getElementById('_2').value, o = document.getElementById('_3'), s = document.getElementById('_S'), copyBtn = document.getElementById('_btnCopy');
-            s.innerText = ''; o.value = ''; copyBtn.style.display = 'none'; copyBtn.style.color = '#fff'; copyBtn.style.background = 'rgba(0, 0, 0, 0.5)'; copyBtn.innerText = 'Copy';
-            if (!i.trim()) {
-                _H(o);
-                return;
-            }
+            s.innerText = ''; o.value = ''; copyBtn.style.display = 'none'; copyBtn.style.color = '#fff'; copyBtn.innerText = 'Copy';
+            if (!i.trim()) { _H(o); return; }
+            
             try {
                 o.value = _C(i, _p, _m);
                 if (o.value.trim()) copyBtn.style.display = 'block';
@@ -167,9 +135,9 @@
                 let errMsg = '';
                 if (!_m) {
                     if (x.message.includes('Invalid cipher signature')) {
-                        errMsg = 'INVALID CIPHER - Expected format: UAAA followed by U/A characters';
-                    } else if (x.message.includes('TypeError')) {
-                        errMsg = 'INVALID INPUT - Cipher must be a valid string';
+                        errMsg = 'INVALID CIPHER - Expected format: UAAA followed by Base64 characters';
+                    } else if (x.message.includes('Invalid Base64')) {
+                        errMsg = 'INVALID INPUT - Malformed Base64 payload';
                     } else {
                         errMsg = 'DECRYPTION ERROR - ' + x.message;
                     }
@@ -180,37 +148,6 @@
             }
             _H(o);
         }
-
-        /*
-           =========================================================
-           PUBLIC API SPECIFICATION FOR INTEGRATIONS & MESSAGING APPS
-           =========================================================
-        */
-        window.TerminalAPI = {
-            encrypt: function(text, customKey = _p) {
-                try {
-                    if (typeof text !== 'string') throw new TypeError('Text must be a string');
-                    return _C(text, customKey, true);
-                } catch(e) {
-                    console.error('TerminalAPI.encrypt error:', e.message);
-                    return null;
-                }
-            },
-            decrypt: function(cipher, customKey = _p) {
-                try {
-                    if (typeof cipher !== 'string') throw new TypeError('Cipher must be a string');
-                    return _C(cipher, customKey, false);
-                } catch(e) {
-                    console.error('TerminalAPI.decrypt error:', e.message);
-                    return null;
-                }
-            },
-            generateLink: function(mode, text) {
-                if (typeof text !== 'string') return null;
-                const base = window.location.href.split('?')[0];
-                return `${base}?m=${mode === 'decrypt' ? 'dec' : 'enc'}&d=${encodeURIComponent(text)}`;
-            }
-        };
     </script>
 </body>
 </html>
