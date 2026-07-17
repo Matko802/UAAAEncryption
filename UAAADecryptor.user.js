@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         UAAADecryptor
 // @namespace    http://tampermonkey.net/
-// @version      0.0.6
-// @description  UAAAEncryption custom encryptor/decryptor (Base64 Edition)
+// @version      0.0.7
+// @description  UAAAEncryption custom encryptor/decryptor (AES-GCM Edition)
 // @author       Matko802
 // @match        *://*/*
 // @require      https://raw.githubusercontent.com/Matko802/UAAAEncryption/main/uaaa-core.js
@@ -14,11 +14,9 @@
     'use strict';
 
     const ENCRYPTOR_URL = 'https://matko802.github.io/UAAAEncryption/';
-    // Updated regex to detect UAAA + Base64 characters
     const CIPHER_REGEX = /UAAA[A-Za-z0-9+/]+={0,2}/g;
     const CRYPTO_KEY = '\x55\x41\x41\x41'; // "UAAA"
 
-    // Inject styles safely into head or document root
     function injectStyles() {
         if (document.getElementById('uaaa-styles')) return;
         const styleSheet = document.createElement('style');
@@ -59,7 +57,6 @@
         const match = CIPHER_REGEX.exec(text);
         if (!match) return;
 
-        // Base64 is case-sensitive. Removed .toUpperCase()
         const cipherBlob = match[0].replace(/\s/g, ''); 
 
         const btnGroup = document.createElement('span');
@@ -82,7 +79,8 @@
         let isDecrypted = false;
         const originalTextValue = node.nodeValue;
 
-        decBtn.addEventListener('click', (e) => {
+        // Make the event listener asynchronous
+        decBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
 
@@ -93,15 +91,17 @@
                             decBtn.innerText = '⚠️';
                             decBtn.className = 'uaaa-btn uaaa-btn-error';
                             decBtn.title = 'Decryption engine failed to load';
-                            console.error("UAAA API Error: _C function not loaded.");
                             return;
                         }
-                        decryptedCache = _C(cipherBlob, CRYPTO_KEY, false);
+                        
+                        decBtn.innerText = '⌛'; // Display loading state while awaiting Promise
+                        
+                        // Await the Web Crypto API result
+                        decryptedCache = await _C(cipherBlob, CRYPTO_KEY, false);
                     } catch (err) {
                         decBtn.innerText = '❌';
                         decBtn.className = 'uaaa-btn uaaa-btn-error';
-                        decBtn.title = 'Invalid cipher text';
-                        console.error("UAAA Decryption Error:", err.message);
+                        decBtn.title = err.message || 'Invalid cipher text';
                         return;
                     }
                 }
