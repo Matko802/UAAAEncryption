@@ -1,16 +1,12 @@
 // ==UserScript==
 // @name         UAAADecryptor
 // @namespace    http://tampermonkey.net/
-// @version      0.1.0
-// @description  UAAAEncryption custom encryptor/decryptor (now real asymmetric OpenPGP under the hood)
+// @version      0.0.2
+// @description  UAAAEncryption custom encryptor/decryptor
 // @author       Matko802
 // @match        *://*/*
-// @require      https://unpkg.com/openpgp@6/dist/openpgp.min.js
 // @require      https://raw.githubusercontent.com/Matko802/UAAAEncryption/main/uaaa-core.js
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_deleteValue
-// @grant        GM_registerMenuCommand
+// @grant        none
 // @run-at       document-end
 // ==/UserScript==
 
@@ -19,34 +15,9 @@
 
     const ENCRYPTOR_URL = 'https://matko802.github.io/UAAAEncryption/';
     const CIPHER_REGEX = /(UAAA[UA]+)/gi;
+    const CRYPTO_KEY = '\x55\x41\x41\x41'; // "UAAA"
 
-    // The UAAA.encrypt/UAAA.decrypt engine is injected by the @require tags above
-    // (openpgp.js first, then uaaa-core.js which wraps it).
-
-    /* ---------------------------------------------------------------------
-       Key setup, via the Tampermonkey menu. Your PRIVATE key + passphrase
-       are only ever asked for at decrypt-time (the passphrase is never
-       stored) — only the armored private key itself sits in GM storage,
-       scoped to this script, and is still passphrase-protected at rest.
-    --------------------------------------------------------------------- */
-    GM_registerMenuCommand('🔑 Set My Private Key (paste armored key)', () => {
-        const current = GM_getValue('uaaa_my_private', '');
-        const pasted = prompt('Paste your ARMORED PRIVATE KEY (from the UAAA site\'s "Keys" panel):', current);
-        if (pasted !== null) GM_setValue('uaaa_my_private', pasted.trim());
-    });
-
-    GM_registerMenuCommand('🧾 Set My Public Key (for reference)', () => {
-        const current = GM_getValue('uaaa_my_public', '');
-        const pasted = prompt('Paste your ARMORED PUBLIC KEY (so you can copy it back out later):', current);
-        if (pasted !== null) GM_setValue('uaaa_my_public', pasted.trim());
-    });
-
-    GM_registerMenuCommand('🗑️ Clear My Stored Keys', () => {
-        if (confirm('Remove your stored private/public key from this script\'s storage?')) {
-            GM_deleteValue('uaaa_my_private');
-            GM_deleteValue('uaaa_my_public');
-        }
-    });
+    // The _C() engine is no longer here. It is injected automatically by the @require tag above.
 
     function applyStyle(el, color, bg, border) {
         el.style.color = color;
@@ -63,23 +34,6 @@
         el.style.userSelect = 'none';
     }
 
-    // Returns true if this node lives inside anything the user could still be typing/editing in:
-    // a real <input>/<textarea>, a contenteditable region (checked via the ancestor-aware
-    // isContentEditable property, not just the immediate parent), or an ARIA textbox/searchbox.
-    function isInsideEditableContext(node) {
-        const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
-        if (!el) return false;
-
-        // isContentEditable walks up the ancestor chain itself, so this catches text
-        // nested several levels deep inside a contenteditable compose box (e.g. Slate/Draft.js editors).
-        if (el.isContentEditable) return true;
-
-        const editableAncestor = el.closest('input, textarea, [contenteditable], [contenteditable="true"], [role="textbox"], [role="searchbox"]');
-        if (editableAncestor) return true;
-
-        return false;
-    }
-
     function convertTextNode(node) {
         const text = node.nodeValue;
         if (!text || !CIPHER_REGEX.test(text)) return;
@@ -89,11 +43,9 @@
             if (!parent) return;
 
             const tag = parent.tagName;
-            if (tag === 'SCRIPT' || tag === 'STYLE') {
+            if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA' || tag === 'INPUT' || parent.contentEditable === 'true') {
                 return;
             }
-
-            if (isInsideEditableContext(node)) return;
 
             if (parent.querySelector('.uaaa-btn-group')) return;
 
@@ -128,29 +80,21 @@
             let isDecrypted = false;
             const originalTextValue = node.nodeValue;
 
-            decBtn.addEventListener('click', async (e) => {
+            decBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
 
                 if (!isDecrypted) {
                     if (!decryptedCache) {
-                        const myPrivateKey = GM_getValue('uaaa_my_private', '');
-                        if (!myPrivateKey) {
-                            alert('No private key set yet. Use the Tampermonkey menu → "Set My Private Key" first.');
-                            return;
-                        }
-                        const passphrase = prompt('Passphrase for your private key:') || '';
-
-                        decBtn.innerText = '⏳ ...';
                         try {
-                            const { plaintext } = await UAAA.decrypt(cipherBlob, myPrivateKey, passphrase, null);
-                            decryptedCache = plaintext;
+                            // Using the _C function loaded from your GitHub raw file
+                            if (typeof _C === 'function') {
+                                decryptedCache = _C(cipherBlob, CRYPTO_KEY, false);
+                            } else {
+                                console.error("UAAA API Error: _C function not loaded from GitHub.");
+                            }
                         } catch (err) {
-                            console.error('UAAA decrypt error:', err);
-                            alert('Decryption failed — wrong passphrase, wrong key, or not addressed to you.');
-                            decBtn.innerText = '🔓 Decrypt';
-                            applyStyle(decBtn, '#7e5af0', '#000000', '#7e5af0');
-                            return;
+                            console.error("UAAA API Error:", err);
                         }
                     }
                     if (decryptedCache) {

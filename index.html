@@ -3,254 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UAAA Encryptor</title>
+    <title>Encrypted Terminal</title>
     <style>
-        :root {
-            --bg: #000000;
-            --maroon: #4c0022;
-            --maroon-soft: rgba(76, 0, 34, 0.55);
-            --accent: #cc3d4d;
-            --accent-dim: #4c0022;
-            --text: #cc3d4d;
-            --muted: rgba(204, 61, 77, 0.55);
-            --faint: rgba(204, 61, 77, 0.3);
-        }
-        * { box-sizing: border-box; }
-        body {
-            margin: 0; padding: 24px 16px 60px;
-            background: var(--bg); color: var(--text);
-            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-        }
-        #_A { max-width: 620px; margin: 0 auto; }
-
-        h1 {
-            font-size: 0.8rem; letter-spacing: 3px; text-transform: uppercase;
-            color: var(--accent); margin: 0 0 20px; text-align: center; font-weight: 700;
-        }
-        h1::before { content: '// '; color: var(--muted); }
-
-        /* ---- tabs ---- */
-        .tabs { display: flex; border: 1px solid var(--accent); overflow: hidden; margin-bottom: 16px; }
-        .tab {
-            flex: 1; padding: 12px 8px; background: var(--bg); color: var(--muted);
-            border: none; border-right: 1px solid var(--accent); cursor: pointer;
-            font-family: inherit; font-size: 0.7rem; letter-spacing: 1.5px; text-transform: uppercase;
-            font-weight: 700; transition: background .12s, color .12s;
-        }
-        .tab:last-child { border-right: none; }
-        .tab:hover { color: var(--accent); background: var(--maroon); }
-        .tab.active { background: var(--accent); color: #000000; }
-
-        /* ---- generic panel/field styling ---- */
-        .panel {
-            border: 1px solid var(--accent); background: var(--bg);
-            padding: 14px; margin-bottom: 16px;
-        }
-        .view { display: none; }
-        .view.active { display: block; }
-
-        .field { margin-bottom: 12px; }
-        .field:last-child { margin-bottom: 0; }
-        .field label {
-            display: flex; justify-content: space-between; align-items: baseline;
-            font-size: 0.68rem; letter-spacing: .5px; text-transform: uppercase;
-            color: var(--muted); margin-bottom: 5px;
-        }
-        .field label .hint { text-transform: none; letter-spacing: 0; opacity: .8; font-size: 0.72rem; }
-
-        textarea, input[type=text], input[type=password], input[type=email] {
-            width: 100%; background: #000000; color: var(--text);
-            border: 1px solid var(--accent-dim); border-radius: 0;
-            padding: 9px 10px; font-family: inherit; font-size: 0.85rem;
-            outline: 0; transition: border-color .12s;
-        }
-        textarea { min-height: 46px; max-height: 220px; resize: vertical; overflow-y: auto; word-break: break-all; line-height: 1.4; }
-        textarea:focus, input:focus { border-color: var(--accent); }
-        textarea[readonly] { color: var(--accent); }
-        ::placeholder { color: var(--faint); }
-
-        .row { display: flex; gap: 8px; }
-        .row > * { flex: 1; }
-
-        .toggle-line { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--muted); cursor: pointer; user-select: none; }
-        .toggle-line input { width: auto; margin: 0; accent-color: var(--accent); }
-
-        button {
-            background: var(--maroon); color: var(--accent); border: 1px solid var(--accent);
-            border-radius: 0; padding: 10px 14px; cursor: pointer; font-family: inherit;
-            font-size: 0.72rem; letter-spacing: 1px; text-transform: uppercase; font-weight: 700;
-            transition: background .12s, color .12s, border-color .12s;
-        }
-        button:hover { background: var(--accent); color: #000000; }
-        button.ghost { background: var(--maroon-soft); border-color: var(--muted); color: var(--muted); }
-        button.ghost:hover { background: var(--accent); color: #000000; border-color: var(--accent); }
-        button.danger { background: var(--maroon); border-color: var(--accent); color: var(--accent); font-weight: 800; }
-        button.danger:hover { background: var(--accent); color: #000000; }
-        button.full { width: 100%; }
-
-        .status { min-height: 18px; font-size: 0.78rem; font-weight: 700; text-align: center; margin: 4px 0 12px; color: var(--accent); }
-        .status.ok::before { content: '✓ '; }
-        .status.bad { text-decoration: underline; }
-        .status.bad::before { content: '✗ '; }
-        .status.info { color: var(--muted); font-weight: 600; font-style: italic; }
-
-        .output-wrap { position: relative; }
-        .copy-btn {
-            position: absolute; top: 8px; right: 8px; padding: 5px 9px; font-size: 0.62rem;
-            background: var(--maroon); border-color: var(--muted); color: var(--muted);
-        }
-        .copy-btn:hover { background: var(--accent); color: #000000; border-color: var(--accent); }
-
-        summary.sub {
-            cursor: pointer; font-size: 0.72rem; color: var(--muted); letter-spacing: .5px;
-            text-transform: uppercase; margin: 10px 0 8px; list-style: none; font-weight: 700;
-        }
-        summary.sub::-webkit-details-marker { display: none; }
-        summary.sub::before { content: '▸ '; }
-        details[open] > summary.sub::before { content: '▾ '; }
-
-        .warn-text { color: var(--accent); font-weight: 800; }
-        .keypair-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-        .keypair-label .actions { display: flex; gap: 6px; }
-        .keypair-label button { padding: 3px 8px; font-size: 0.6rem; }
+        body { margin: 0; padding: 0; background: #0a0a0a; color: #7e5af0; font-family: 'Courier New', monospace; user-select: none; }
+        #_A { display: block; max-width: 600px; margin: 40px auto; padding: 20px; }
+        textarea { width: 100%; min-height: 120px; height: auto; background: #000; color: #7e5af0; border: 1px solid #333; padding: 10px; font-family: inherit; box-sizing: border-box; margin-bottom: 10px; outline: 0; word-break: break-all; overflow-y: hidden; resize: none; }
+        textarea:focus { border-color: #7e5af0; }
+        .b { display: flex; gap: 10px; margin-bottom: 20px; }
+        button { flex: 1; padding: 15px; background: #000; color: #7e5af0; border: 1px solid #7e5af0; cursor: pointer; font-family: inherit; text-transform: uppercase; font-weight: bold; letter-spacing: 2px; transition: 0.2s; }
+        button:hover { background: #7e5af0; color: #000; }
+        #_S { color: #ff3333; margin-bottom: 10px; text-align: center; min-height: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="_A">
-        <h1>UAAA Encryptor</h1>
-
-        <div class="tabs">
-            <button class="tab active" id="_tabEncBtn" onclick="_switchTab('encrypt')">Encrypt</button>
-            <button class="tab" id="_tabDecBtn" onclick="_switchTab('decrypt')">Decrypt</button>
-            <button class="tab" id="_tabKeysBtn" onclick="_switchTab('keys')">Keys</button>
+        <div class="b">
+            <button id="_btnM" onclick="_T()">MODE: ENCRYPT</button>
         </div>
-
-        <!-- ===================== ENCRYPT ===================== -->
-        <div class="view active" id="_viewEncrypt">
-            <div class="panel">
-                <div class="field">
-                    <label>
-                        Recipient's public key 
-                        <select id="_contactSelectEnc" onchange="_loadContact(this.value, '_rcpt')" style="width: auto; background: var(--bg); color: var(--accent); border: 1px solid var(--accent); outline: none;">
-                            <option value="">-- Address Book --</option>
-                        </select>
-                    </label>
-                    <textarea id="_rcpt" placeholder="Paste the recipient's public key here..."></textarea>
-                </div>
-                <details id="_encSignDetails">
-                    <summary class="sub">Sign with my key (optional)</summary>
-                    <div class="field">
-                        <label>Your passphrase</label>
-                        <input type="password" id="_kpEnc" placeholder="Unlocks your private key to sign">
-                    </div>
-                </details>
-            </div>
-
-            <div class="status" id="_S"></div>
-
-            <div class="field">
-                <label>Message</label>
-                <textarea id="_2" placeholder="Type or paste the message to encrypt..." autocomplete="off"></textarea>
-            </div>
-            <div class="field output-wrap">
-                <label>Ciphertext</label>
-                <textarea id="_3" readonly placeholder="Output will appear here..." autocomplete="off"></textarea>
-                <button class="copy-btn" onclick="_copy('_3', this)">Copy</button>
-            </div>
-        </div>
-
-        <!-- ===================== DECRYPT ===================== -->
-        <div class="view" id="_viewDecrypt">
-            <div class="panel">
-                <div class="field">
-                    <label>Your passphrase</label>
-                    <input type="password" id="_kpDec" placeholder="Unlocks your private key">
-                </div>
-                <details id="_decVerifyDetails">
-                    <summary class="sub">Verify sender's signature (optional)</summary>
-                    <div class="field">
-                        <label>
-                            Sender's public key
-                            <select id="_contactSelectDec" onchange="_loadContact(this.value, '_sndr')" style="width: auto; background: var(--bg); color: var(--accent); border: 1px solid var(--accent); outline: none;">
-                                <option value="">-- Address Book --</option>
-                            </select>
-                        </label>
-                        <textarea id="_sndr" placeholder="Paste the sender's public key here..."></textarea>
-                    </div>
-                </details>
-            </div>
-
-            <div class="status" id="_Sdec"></div>
-
-            <div class="field">
-                <label>Ciphertext</label>
-                <textarea id="_2d" placeholder="Paste the UAAA ciphertext to decrypt..." autocomplete="off"></textarea>
-            </div>
-            <div class="field output-wrap">
-                <label>Message</label>
-                <textarea id="_3d" readonly placeholder="Decrypted message will appear here..." autocomplete="off"></textarea>
-                <button class="copy-btn" onclick="_copy('_3d', this)">Copy</button>
-            </div>
-        </div>
-
-        <!-- ===================== KEYS ===================== -->
-        <div class="view" id="_viewKeys">
-            <div class="panel">
-                <h1 style="text-align: left; font-size: 0.7rem; margin-bottom: 10px;">Address Book</h1>
-                <div class="row">
-                    <input type="text" id="_newContactName" placeholder="Contact Name">
-                    <button class="ghost" onclick="_saveContact()">Save Contact</button>
-                    <button class="ghost danger" onclick="_clearContacts()">Clear All</button>
-                </div>
-                <textarea id="_newContactKey" placeholder="Paste their public key here to save..." style="margin-top: 8px;"></textarea>
-            </div>
-
-            <div class="panel">
-                <div class="field">
-                    <label>Identity <span class="hint">stays local, used only inside the key itself</span></label>
-                    <div class="row">
-                        <input type="text" id="_kn" placeholder="Name" value="UAAA User">
-                        <input type="text" id="_ke" placeholder="Email" value="user@uaaa.local">
-                    </div>
-                </div>
-                <div class="field">
-                    <label>Passphrase <span class="hint">protects your new private key at rest</span></label>
-                    <input type="password" id="_kp" placeholder="Choose a passphrase">
-                </div>
-                <button class="full" onclick="_genKeys()">Generate New Keypair</button>
-            </div>
-
-            <div class="panel">
-                <div class="keypair-label">
-                    <label style="margin:0">Your public key</label>
-                    <div class="actions">
-                        <button class="ghost" onclick="_copy('_mypub', this)">Copy</button>
-                        <button class="ghost" onclick="_exportKey('_mypub','uaaa-public-key.asc')">Export</button>
-                        <button class="ghost" onclick="_importKey('_mypub','uaaa_my_public')">Import</button>
-                    </div>
-                </div>
-                <textarea id="_mypub" placeholder="Generate or import a public key..."></textarea>
-            </div>
-
-            <div class="panel">
-                <div class="keypair-label">
-                    <label style="margin:0" class="warn-text">Your private key — never share</label>
-                    <div class="actions">
-                        <button class="ghost" onclick="_copy('_mypriv', this)">Copy</button>
-                        <button class="ghost" onclick="_exportKey('_mypriv','uaaa-private-key.asc')">Export</button>
-                        <button class="ghost" onclick="_importKey('_mypriv','uaaa_my_private')">Import</button>
-                    </div>
-                </div>
-                <textarea id="_mypriv" placeholder="Generate or import a private key..."></textarea>
-            </div>
-
-            <input type="file" id="_fileImport" accept=".asc,.txt,.pgp,.gpg" style="display:none">
-        </div>
+        <div id="_S"></div>
+        <textarea id="_2" placeholder="Type or paste payload here..." autocomplete="off"></textarea>
+        <textarea id="_3" readonly placeholder="Live output will appear here..." autocomplete="off"></textarea>
     </div>
-
-    <!-- OpenPGP.js does the actual cryptography -->
-    <script src="https://unpkg.com/openpgp@6/dist/openpgp.min.js"></script>
 
     <!-- Shared cipher engine (single source of truth, also @require'd by the Tampermonkey userscript) -->
     <script src="uaaa-core.js"></script>
@@ -260,295 +34,75 @@
         document.oncontextmenu = e => { e.preventDefault(); return !1; };
         document.onkeydown = e => { if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || (e.ctrlKey && e.keyCode === 85)) { e.preventDefault(); return !1; } };
 
-        /* ---------------------------------------------------------------
-           Tabs: Encrypt / Decrypt / Keys. Only one view is visible at a
-           time, so each screen only shows the fields it actually needs.
-        --------------------------------------------------------------- */
-        const _views = { encrypt: '_viewEncrypt', decrypt: '_viewDecrypt', keys: '_viewKeys' };
-        const _tabBtns = { encrypt: '_tabEncBtn', decrypt: '_tabDecBtn', keys: '_tabKeysBtn' };
-
-        function _switchTab(name) {
-            Object.entries(_views).forEach(([key, id]) => {
-                document.getElementById(id).classList.toggle('active', key === name);
-                document.getElementById(_tabBtns[key]).classList.toggle('active', key === name);
-            });
-            if (name === 'encrypt') _runEncrypt();
-            if (name === 'decrypt') _runDecrypt();
-        }
-
-        function _H(el) {
-            if (!el) return;
-            el.style.height = 'auto';
-            el.style.height = Math.min(el.scrollHeight, 220) + 'px';
-        }
-
-        function _resizeAll() {
-            document.querySelectorAll('textarea').forEach(_H);
-        }
-
-        // Belt-and-braces: whatever textarea the user types/pastes into,
-        // anywhere on the page, resizes itself — no per-field wiring needed.
-        document.addEventListener('input', (e) => {
-            if (e.target.tagName === 'TEXTAREA') _H(e.target);
-        });
-
-        // <details> renders content with display:none while collapsed, so
-        // scrollHeight reads 0 until it's actually opened.
-        document.getElementById('_encSignDetails').addEventListener('toggle', _resizeAll);
-        document.getElementById('_decVerifyDetails').addEventListener('toggle', _resizeAll);
-
-        function _copy(textareaId, btn) {
-            const ta = document.getElementById(textareaId);
-            if (!ta.value.trim()) return;
-            navigator.clipboard.writeText(ta.value).then(() => {
-                if (!btn) return;
-                const original = btn.textContent;
-                btn.textContent = 'Copied';
-                setTimeout(() => { btn.textContent = original; }, 1200);
-            }).catch(() => {});
-        }
-
-        /* ---------------------------------------------------------------
-           Address Book / Contacts Logic
-        --------------------------------------------------------------- */
-        function _getContacts() {
-            try {
-                return JSON.parse(localStorage.getItem('uaaa_contacts')) || {};
-            } catch (e) {
-                return {};
-            }
-        }
-
-        function _refreshContactDropdowns() {
-            const contacts = _getContacts();
-            const selects = [document.getElementById('_contactSelectEnc'), document.getElementById('_contactSelectDec')];
-            
-            selects.forEach(select => {
-                if (!select) return;
-                select.innerHTML = '<option value="">-- Address Book --</option>';
-                Object.keys(contacts).forEach(name => {
-                    const opt = document.createElement('option');
-                    opt.value = name;
-                    opt.textContent = name;
-                    select.appendChild(opt);
-                });
-            });
-        }
-
-        function _loadContact(name, targetId) {
-            if (!name) return;
-            const contacts = _getContacts();
-            if (contacts[name]) {
-                const ta = document.getElementById(targetId);
-                ta.value = contacts[name];
-                _H(ta);
-                if (targetId === '_rcpt') _runEncrypt();
-                if (targetId === '_sndr') _runDecrypt();
-            }
-        }
-
-        function _saveContact() {
-            const name = document.getElementById('_newContactName').value.trim();
-            const key = document.getElementById('_newContactKey').value.trim();
-            if (!name || !key) {
-                alert("Please provide both a name and a public key.");
-                return;
-            }
-            
-            const contacts = _getContacts();
-            contacts[name] = key;
-            localStorage.setItem('uaaa_contacts', JSON.stringify(contacts));
-            
-            document.getElementById('_newContactName').value = '';
-            document.getElementById('_newContactKey').value = '';
-            _H(document.getElementById('_newContactKey'));
-            
-            _refreshContactDropdowns();
-            alert(`Contact "${name}" saved!`);
-        }
-
-        function _clearContacts() {
-            if (confirm("Are you sure you want to delete all saved contacts?")) {
-                localStorage.removeItem('uaaa_contacts');
-                _refreshContactDropdowns();
-            }
-        }
-
-        /* ---- persist your own keypair (public + private ARMORED blocks) in this browser ---- */
-        function _loadStoredKeys() {
-            const pub = localStorage.getItem('uaaa_my_public');
-            const priv = localStorage.getItem('uaaa_my_private');
-            if (pub) document.getElementById('_mypub').value = pub;
-            if (priv) document.getElementById('_mypriv').value = priv;
-        }
-
-        async function _genKeys() {
-            const s = document.getElementById('_S');
-            try {
-                const name = document.getElementById('_kn').value || 'UAAA User';
-                const email = document.getElementById('_ke').value || 'user@uaaa.local';
-                const passphrase = document.getElementById('_kp').value;
-                const { privateKeyArmored, publicKeyArmored } = await UAAA.generateKeyPair(name, email, passphrase);
-                document.getElementById('_mypub').value = publicKeyArmored;
-                document.getElementById('_mypriv').value = privateKeyArmored;
-                localStorage.setItem('uaaa_my_public', publicKeyArmored);
-                localStorage.setItem('uaaa_my_private', privateKeyArmored);
-                _resizeAll();
-            } catch (err) {
-                alert('Key generation failed. See console for details.');
-                console.error(err);
-            }
-        }
-
-        /* ---- export / import key textareas as .asc files ---- */
-        function _exportKey(textareaId, filename) {
-            const value = document.getElementById(textareaId).value;
-            if (!value.trim()) { alert('Nothing to export yet.'); return; }
-            const blob = new Blob([value], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-        }
-
-        function _importKey(textareaId, storageKey) {
-            const fileInput = document.getElementById('_fileImport');
-            fileInput.onchange = () => {
-                const file = fileInput.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const ta = document.getElementById(textareaId);
-                    ta.value = reader.result.trim();
-                    localStorage.setItem(storageKey, ta.value);
-                    _H(ta);
-                };
-                reader.readAsText(file);
-                fileInput.value = '';
-            };
-            fileInput.click();
-        }
-        document.getElementById('_mypub').addEventListener('input', function() {
-            _H(this);
-            localStorage.setItem('uaaa_my_public', this.value);
-        });
-        document.getElementById('_mypriv').addEventListener('input', function() {
-            _H(this);
-            localStorage.setItem('uaaa_my_private', this.value);
-        });
-
-        /* ---------------------------- encrypt / decrypt runners ---------------------------- */
-        let _encRun = 0;
-        async function _runEncrypt() {
-            const runId = ++_encRun;
-            const i = document.getElementById('_2').value;
-            const o = document.getElementById('_3');
-            const s = document.getElementById('_S');
-            s.textContent = ''; s.className = 'status';
-            o.value = '';
-            if (!i.trim()) { _H(o); return; }
-
-            const rcptPub = document.getElementById('_rcpt').value.trim();
-            if (!rcptPub) { s.textContent = "Paste the recipient's public key to encrypt"; s.className = 'status info'; _H(o); return; }
-
-            const wantsSign = document.getElementById('_encSignDetails').open;
-            const myPriv = document.getElementById('_mypriv').value;
-            const passphrase = document.getElementById('_kpEnc').value;
-
-            try {
-                const out = await UAAA.encrypt(i, rcptPub, (wantsSign && myPriv) ? myPriv : null, wantsSign ? passphrase : null);
-                if (runId !== _encRun) return;
-                o.value = out;
-            } catch (x) {
-                if (runId !== _encRun) return;
-                s.textContent = 'Encryption failed — check the recipient key';
-                s.className = 'status bad';
-                console.error(x);
-            }
-            _H(o);
-        }
-
-        let _decRun = 0;
-        async function _runDecrypt() {
-            const runId = ++_decRun;
-            const i = document.getElementById('_2d').value;
-            const o = document.getElementById('_3d');
-            const s = document.getElementById('_Sdec');
-            s.textContent = ''; s.className = 'status';
-            o.value = '';
-            if (!i.trim()) { _H(o); return; }
-
-            const myPriv = document.getElementById('_mypriv').value;
-            if (!myPriv) { s.textContent = 'Generate or import your private key first (Keys tab)'; s.className = 'status info'; _H(o); return; }
-
-            const passphrase = document.getElementById('_kpDec').value;
-            const wantsVerify = document.getElementById('_decVerifyDetails').open;
-            const sndrPub = wantsVerify ? document.getElementById('_sndr').value.trim() : '';
-
-            try {
-                const { plaintext, verified } = await UAAA.decrypt(i, myPriv, passphrase, sndrPub || null);
-                if (runId !== _decRun) return;
-                o.value = plaintext;
-                if (verified === true) { s.textContent = 'Signature verified'; s.className = 'status ok'; }
-                else if (verified === false) { s.textContent = 'Signature invalid'; s.className = 'status bad'; }
-            } catch (x) {
-                if (runId !== _decRun) return;
-                s.textContent = 'Decryption failed — wrong key, passphrase, or invalid ciphertext';
-                s.className = 'status bad';
-                console.error(x);
-            }
-            _H(o);
-        }
-
-        ['_2', '_rcpt', '_kpEnc'].forEach(id => {
-            document.getElementById(id).addEventListener('input', function() { _H(this); _runEncrypt(); });
-        });
-        ['_2d', '_kpDec', '_sndr'].forEach(id => {
-            document.getElementById(id).addEventListener('input', function() { _H(this); _runDecrypt(); });
-        });
+        /* Default key used by the on-page UI and the public API */
+        const _p = '\x55\x41\x41\x41';
+        let _m = !0;
 
         window.addEventListener('load', () => {
-            _loadStoredKeys();
-            _refreshContactDropdowns();
+            document.getElementById('_2').value = '';
+            document.getElementById('_3').value = '';
 
-            // Prefill from a link generated by TerminalAPI.generateLink() or the
-            // userscript's "Site" button: ?m=enc|dec&d=<text>
+            // Check URL API Engine (used by the "Site" link injected by the userscript,
+            // and by TerminalAPI.generateLink())
             const u = new URLSearchParams(window.location.search);
-            const d = u.get('d'), m = u.get('m');
-            if (d !== null) {
-                if (m === 'dec') {
-                    _switchTab('decrypt');
-                    document.getElementById('_2d').value = decodeURIComponent(d);
-                } else {
-                    _switchTab('encrypt');
-                    document.getElementById('_2').value = decodeURIComponent(d);
+            const d = u.get('d'), m = u.get('m'), k = u.get('k') || _p;
+
+            if (d && k === _p) {
+                _m = !(m === 'dec');
+                document.getElementById('_btnM').innerText = _m ? 'MODE: ENCRYPT' : 'MODE: DECRYPT';
+                document.getElementById('_2').value = decodeURIComponent(d);
+                _H(document.getElementById('_2'));
+                _P();
+            } else {
+                _H(document.getElementById('_2'));
+                _H(document.getElementById('_3'));
+            }
+        });
+
+        function _H(el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        }
+
+        function _T() {
+            _m = !_m;
+            document.getElementById('_btnM').innerText = _m ? 'MODE: ENCRYPT' : 'MODE: DECRYPT';
+            _P();
+        }
+
+        document.getElementById('_2').addEventListener('input', function() {
+            _H(this);
+            _P();
+        });
+
+        function _P() {
+            let i = document.getElementById('_2').value, o = document.getElementById('_3'), s = document.getElementById('_S');
+            s.innerText = ''; o.value = '';
+            if (!i.trim()) {
+                _H(o);
+                return;
+            }
+            try {
+                o.value = _C(i, _p, _m);
+            } catch (x) {
+                if (!_m && i.trim().length > 3) {
+                    s.innerText = 'INVALID CIPHER SIGNATURE';
                 }
             }
-
-            _resizeAll();
-        });
+            _H(o);
+        }
 
         /*
            =========================================================
            PUBLIC API SPECIFICATION FOR INTEGRATIONS & MESSAGING APPS
-           All methods are async, since real OpenPGP crypto is involved.
            =========================================================
         */
         window.TerminalAPI = {
-            encrypt: async function(text, recipientPublicKeyArmored, senderPrivateKeyArmored, senderPassphrase) {
-                try { return await UAAA.encrypt(text, recipientPublicKeyArmored, senderPrivateKeyArmored, senderPassphrase); }
-                catch (e) { return null; }
+            encrypt: function(text, customKey = _p) {
+                try { return _C(text, customKey, true); } catch(e) { return null; }
             },
-            decrypt: async function(cipher, myPrivateKeyArmored, myPassphrase, senderPublicKeyArmored) {
-                try { return await UAAA.decrypt(cipher, myPrivateKeyArmored, myPassphrase, senderPublicKeyArmored); }
-                catch (e) { return null; }
-            },
-            generateKeyPair: async function(name, email, passphrase) {
-                return await UAAA.generateKeyPair(name, email, passphrase);
+            decrypt: function(cipher, customKey = _p) {
+                try { return _C(cipher, customKey, false); } catch(e) { return null; }
             },
             generateLink: function(mode, text) {
                 const base = window.location.href.split('?')[0];
