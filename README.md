@@ -1,7 +1,7 @@
 <div align="center">
     <img src="Assets/logo/UA.png"
         title="UAAAEncryption" alt="UAAAEncryption logo" width="120" />
-    <h1>Helium</h1>
+    <h1>UAAAEncryption</h1>
     <p>
         Another unsecure shitty text Encryption 
         <br>
