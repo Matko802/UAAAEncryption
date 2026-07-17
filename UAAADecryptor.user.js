@@ -1,27 +1,8 @@
 // ==UserScript==
 // @name         UAAADecryptor
 // @namespace    http://tampermonkey.net/
-// @version      0.0.3
-// @description  UAAAEncryption custom encryptor/decryptor
-// @author       Matko802
-// @match        *://*/*
-// @require      https://raw.githubusercontent.com/Matko802/UAAAEncryption/main/uaaa-core.js
-// @grant        none
-// @run-at       document-end
-// ==/UserScript==
-
-(function() {
-    'use strict';
-
-    const ENCRYPTOR_URL = 'https://matko802.github.io/UAAAEncryption/';
-    const CIPHER_REGEX = /(UAAA[UA]+)/gi;
-    const CRYPTO_KEY = '\x55\x41\x41\x41'; // "UAAA"
-
-// ==UserScript==
-// @name         UAAADecryptor
-// @namespace    http://tampermonkey.net/
-// @version      0.0.5
-// @description  UAAAEncryption custom encryptor/decryptor
+// @version      0.0.6
+// @description  UAAAEncryption custom encryptor/decryptor (Base64 Edition)
 // @author       Matko802
 // @match        *://*/*
 // @require      https://raw.githubusercontent.com/Matko802/UAAAEncryption/main/uaaa-core.js
@@ -33,7 +14,8 @@
     'use strict';
 
     const ENCRYPTOR_URL = 'https://matko802.github.io/UAAAEncryption/';
-    const CIPHER_REGEX = /UAAA[UA]+/gi;
+    // Updated regex to detect UAAA + Base64 characters
+    const CIPHER_REGEX = /UAAA[A-Za-z0-9+/]+={0,2}/g;
     const CRYPTO_KEY = '\x55\x41\x41\x41'; // "UAAA"
 
     // Inject styles safely into head or document root
@@ -42,74 +24,24 @@
         const styleSheet = document.createElement('style');
         styleSheet.id = 'uaaa-styles';
         styleSheet.textContent = `
-            .uaaa-btn-group {
-                display: inline-flex;
-                gap: 6px;
-                margin-left: 8px;
-                vertical-align: middle;
-            }
-            .uaaa-btn {
-                padding: 4px 8px;
-                border-radius: 0;
-                font-size: 0.75em;
-                font-family: 'Courier New', monospace;
-                font-weight: bold;
-                cursor: pointer;
-                outline: none;
-                user-select: none;
-                border: 1px solid #cc3d4d;
-                background: #000;
-                color: #fff;
-                transition: 0.2s;
-            }
-            .uaaa-btn:hover {
-                background: #cc3d4d;
-                color: #000;
-            }
-            .uaaa-btn-active {
-                background: #cc3d4d;
-                color: #000;
-                border-color: #cc3d4d;
-            }
-            .uaaa-btn-success {
-                background: #2ed573;
-                color: #000;
-                border-color: #2ed573;
-            }
-            .uaaa-btn-error {
-                background: #ff3333;
-                color: #fff;
-                border-color: #ff3333;
-            }
-            .uaaa-link-btn {
-                text-decoration: none;
-                display: inline-flex;
-                align-items: center;
-                border: 1px solid #505050;
-                background: #000;
-                color: #fff;
-                padding: 4px 8px;
-                font-size: 0.75em;
-                font-family: 'Courier New', monospace;
-                font-weight: bold;
-                transition: 0.2s;
-            }
-            .uaaa-link-btn:hover {
-                background: #505050;
-                color: #fff;
-            }
+            .uaaa-btn-group { display: inline-flex; gap: 6px; margin-left: 8px; vertical-align: middle; }
+            .uaaa-btn { padding: 4px 8px; border-radius: 0; font-size: 0.75em; font-family: 'Courier New', monospace; font-weight: bold; cursor: pointer; outline: none; user-select: none; border: 1px solid #cc3d4d; background: #000; color: #fff; transition: 0.2s; }
+            .uaaa-btn:hover { background: #cc3d4d; color: #000; }
+            .uaaa-btn-active { background: #cc3d4d; color: #000; border-color: #cc3d4d; }
+            .uaaa-btn-success { background: #2ed573; color: #000; border-color: #2ed573; }
+            .uaaa-btn-error { background: #ff3333; color: #fff; border-color: #ff3333; }
+            .uaaa-link-btn { text-decoration: none; display: inline-flex; align-items: center; border: 1px solid #505050; background: #000; color: #fff; padding: 4px 8px; font-size: 0.75em; font-family: 'Courier New', monospace; font-weight: bold; transition: 0.2s; }
+            .uaaa-link-btn:hover { background: #505050; color: #fff; }
         `;
         (document.head || document.documentElement).appendChild(styleSheet);
     }
 
     function convertTextNode(node) {
-        // Guard 1: Skip if already processed or flagged
         if (node._uaaaProcessed) return;
 
         const text = node.nodeValue;
         if (!text) return;
 
-        // Fast regex sanity check (resets lastIndex state)
         CIPHER_REGEX.lastIndex = 0;
         if (!CIPHER_REGEX.test(text)) return;
 
@@ -121,14 +53,14 @@
             return;
         }
 
-        // Guard 2: Instantly flag the node synchronously to prevent MutationObserver race loops
         node._uaaaProcessed = true;
 
         CIPHER_REGEX.lastIndex = 0;
         const match = CIPHER_REGEX.exec(text);
         if (!match) return;
 
-        const cipherBlob = match[0].replace(/\s/g, '').toUpperCase();
+        // Base64 is case-sensitive. Removed .toUpperCase()
+        const cipherBlob = match[0].replace(/\s/g, ''); 
 
         const btnGroup = document.createElement('span');
         btnGroup.className = 'uaaa-btn-group';
@@ -161,7 +93,7 @@
                             decBtn.innerText = '⚠️';
                             decBtn.className = 'uaaa-btn uaaa-btn-error';
                             decBtn.title = 'Decryption engine failed to load';
-                            console.error("UAAA API Error: _C function not loaded from GitHub.");
+                            console.error("UAAA API Error: _C function not loaded.");
                             return;
                         }
                         decryptedCache = _C(cipherBlob, CRYPTO_KEY, false);
@@ -220,23 +152,26 @@
         injectStyles();
         parseDOMTree(document.documentElement);
 
+        let mutationTimeout;
         const dynamicObserver = new MutationObserver((records) => {
-            for (const record of records) {
-                if (record.type === 'characterData') {
-                    convertTextNode(record.target);
-                } else if (record.type === 'childList') {
-                    record.addedNodes.forEach(addedNode => {
-                        if (addedNode.nodeType === Node.ELEMENT_NODE) {
-                            parseDOMTree(addedNode);
-                        } else if (addedNode.nodeType === Node.TEXT_NODE) {
-                            convertTextNode(addedNode);
-                        }
-                    });
+            clearTimeout(mutationTimeout);
+            mutationTimeout = setTimeout(() => {
+                for (const record of records) {
+                    if (record.type === 'characterData') {
+                        convertTextNode(record.target);
+                    } else if (record.type === 'childList') {
+                        record.addedNodes.forEach(addedNode => {
+                            if (addedNode.nodeType === Node.ELEMENT_NODE) {
+                                parseDOMTree(addedNode);
+                            } else if (addedNode.nodeType === Node.TEXT_NODE) {
+                                convertTextNode(addedNode);
+                            }
+                        });
+                    }
                 }
-            }
+            }, 50);
         });
 
-        // Observe documentElement instead of body so we catch everything from start to finish
         dynamicObserver.observe(document.documentElement, {
             childList: true,
             subtree: true,
@@ -244,137 +179,9 @@
         });
     }
 
-    // Safely run as soon as possible
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
     }
-})();
-
-    // Inject styles for better UI
-    const styleSheet = document.createElement('style');
-    styleSheet.textContent = `
-        .uaaa-btn-group {
-            display: inline-flex;
-            gap: 6px;
-            margin-left: 8px;
-            vertical-align: middle;
-        }
-        .uaaa-btn {
-            padding: 4px 8px;
-            border-radius: 0;
-            font-size: 0.75em;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            cursor: pointer;
-            outline: none;
-            user-select: none;
-            border: 1px solid #cc3d4d;
-            background: #000;
-            color: #fff;
-            transition: 0.2s;
-        }
-        .uaaa-btn:hover {
-            background: #cc3d4d;
-            color: #000;
-        }
-        .uaaa-btn-active {
-            background: #cc3d4d;
-            color: #000;
-            border-color: #cc3d4d;
-        }
-        .uaaa-btn-success {
-            background: #2ed573;
-            color: #000;
-            border-color: #2ed573;
-        }
-        .uaaa-btn-error {
-            background: #ff3333;
-            color: #fff;
-            border-color: #ff3333;
-        }
-        .uaaa-link-btn {
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            border: 1px solid #505050;
-            background: #000;
-            color: #fff;
-            padding: 4px 8px;
-            font-size: 0.75em;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            transition: 0.2s;
-        }
-        .uaaa-link-btn:hover {
-            background: #505050;
-            color: #fff;
-        }
-    `;
-    document.head.appendChild(styleSheet);
-
-    function convertTextNode(node) {
-        const text = node.nodeValue;
-        if (!text || !CIPHER_REGEX.test(text)) return;
-
-        setTimeout(() => {
-            const parent = node.parentNode;
-            if (!parent) return;
-
-            const tag = parent.tagName;
-            if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA' || tag === 'INPUT' || parent.contentEditable === 'true') {
-                return;
-            }
-
-            if (parent.querySelector('.uaaa-btn-group')) return;
-
-            CIPHER_REGEX.lastIndex = 0;
-            const matches = text.match(CIPHER_REGEX);
-            if (!matches) return;
-
-            const cipherBlob = matches[0].replace(/\s/g, '').toUpperCase();
-
-            const btnGroup = document.createElement('span');
-            btnGroup.className = 'uaaa-btn-group';
-
-            const decBtn = document.createElement('button');
-            decBtn.className = 'uaaa-btn';
-            decBtn.innerText = '🔓';
-            decBtn.title = 'Decrypt cipher text';
-
-            const infoBtn = document.createElement('a');
-            infoBtn.className = 'uaaa-link-btn';
-            infoBtn.innerText = 'ℹ️';
-            infoBtn.href = `${ENCRYPTOR_URL}?m=dec&d=${encodeURIComponent(cipherBlob)}`;
-            infoBtn.target = '_blank';
-            infoBtn.rel = 'noopener noreferrer';
-ument.body);
-
-    let mutationTimeout;
-    const dynamicObserver = new MutationObserver((records) => {
-        // Debounce DOM updates to improve performance
-        clearTimeout(mutationTimeout);
-        mutationTimeout = setTimeout(() => {
-            for (const record of records) {
-                if (record.type === 'characterData') {
-                    convertTextNode(record.target);
-                } else if (record.type === 'childList') {
-                    record.addedNodes.forEach(addedNode => {
-                        if (addedNode.nodeType === Node.ELEMENT_NODE) {
-                            parseDOMTree(addedNode);
-                        } else if (addedNode.nodeType === Node.TEXT_NODE) {
-                            convertTextNode(addedNode);
-                        }
-                    });
-                }
-            }
-        }, 50);
-    });
-
-    dynamicObserver.observe(document.body, {
-        childList: true,
-        subtree: true,
-        characterData: true
-    });
 })();
