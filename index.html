@@ -163,10 +163,37 @@
 
         // Dragging disabled: slider uses click/tap only to toggle state.
 
+        function _fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try { document.execCommand('copy'); } catch (e) { console.warn('Fallback copy failed', e); }
+            document.body.removeChild(textarea);
+        }
+
+        function _fallbackPaste() {
+            const textarea = document.createElement('textarea');
+            textarea.value = '';
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            document.execCommand('paste');
+            document.body.removeChild(textarea);
+        }
+
         function _copyText(targetId, btn) {
             const value = document.getElementById(targetId).value;
             if (!value.trim()) return;
-            navigator.clipboard.writeText(value).then(() => {
+            const copyPromise = navigator.clipboard && navigator.clipboard.writeText
+                ? navigator.clipboard.writeText(value)
+                : Promise.resolve().then(() => { _fallbackCopy(value); });
+            copyPromise.then(() => {
                 const originalText = btn.innerText;
                 btn.innerText = 'Copied!';
                 btn.style.color = '#2ed573';
@@ -183,7 +210,13 @@
         }
 
         function _pasteText(targetId, btn) {
-            navigator.clipboard.readText().then(text => {
+            const pastePromise = navigator.clipboard && navigator.clipboard.readText
+                ? navigator.clipboard.readText()
+                : Promise.resolve().then(() => {
+                    _fallbackPaste();
+                    return '';
+                });
+            pastePromise.then(text => {
                 const input = document.getElementById(targetId);
                 input.value = text;
                 input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -266,19 +299,16 @@
             }
         };
 
-        /* Site update checker: fetches raw index.html and compares version badge.
+        /* Site update checker: fetches remote version.txt and compares it against the local version badge.
            If a newer version is found, show a top-left notification with Refresh. */
         (function(){
-            const REMOTE_INDEX_URL = 'https://raw.githubusercontent.com/Matko802/UAAAEncryption/refs/heads/main/index.html';
+            const REMOTE_VERSION_URL = 'https://raw.githubusercontent.com/Matko802/UAAAEncryption/refs/heads/main/version.txt';
             function getLocalVersion(){ const el = document.getElementById('version-badge'); return el ? el.innerText.trim() : null; }
-            function extractVersionFromHTML(html){ const m = html.match(/id=["']version-badge["'][^>]*>([^<]+)</i); return m ? m[1].trim() : null; }
             function showUpdateNotice(remoteVersion){ if(document.getElementById('_update_notice')) return; const d = document.createElement('div'); d.id = '_update_notice'; d.className = 'update-notice'; d.innerHTML = `<span>Update available: ${remoteVersion}</span><button id="_update_btn">Refresh</button><button id="_update_close" class="close">✕</button>`; document.body.appendChild(d);
                 document.getElementById('_update_btn').addEventListener('click', function(){ try { location.reload(true); } catch(e){ location.reload(); } });
                 document.getElementById('_update_close').addEventListener('click', function(){ d.remove(); });
             }
-            function checkForUpdate(){ fetch(REMOTE_INDEX_URL, { cache: 'no-store' }).then(r => r.text()).then(t => { const remoteV = extractVersionFromHTML(t); const localV = getLocalVersion(); if(remoteV && localV && remoteV !== localV) showUpdateNotice(remoteV); }).catch(() => {});
-            }
-            // add minimal styles for the notice
+            function checkForUpdate(){ fetch(REMOTE_VERSION_URL, { cache: 'no-store' }).then(r => r.text()).then(t => { const remoteV = t.trim(); const localV = getLocalVersion(); if(remoteV && localV && remoteV !== localV) showUpdateNotice(remoteV); }).catch(() => {}); }
             const css = `.update-notice{position:fixed;left:8px;top:8px;background:rgba(204,61,77,0.98);color:#fff;padding:8px 10px;border-radius:5px;display:flex;gap:8px;align-items:center;z-index:9999;font-family:'JetBrains Mono',monospace;font-weight:700} .update-notice button{background:#fff;color:#cc3d4d;border:none;padding:6px 8px;cursor:pointer;font-weight:700;border-radius:3px} .update-notice .close{background:transparent;color:#fff;border:none;cursor:pointer;font-weight:700;padding:4px 6px}`;
             const s = document.createElement('style'); s.appendChild(document.createTextNode(css)); document.head.appendChild(s);
 
