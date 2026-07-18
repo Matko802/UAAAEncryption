@@ -5,6 +5,7 @@
 // @description  UAAAEncryption custom encryptor/decryptor
 // @author       Matko802
 // @match        *://*/*
+// @exclude      https://matko802.github.io/UAAAEncryption/*
 // @icon         https://github.com/Matko802/UAAAEncryption/blob/main/Assets/logo/UA.png?raw=true
 // @require      https://raw.githubusercontent.com/Matko802/UAAAEncryption/refs/heads/main/uaaa-core.js
 // @updateURL    https://raw.githubusercontent.com/Matko802/UAAAEncryption/refs/heads/main/UAAADecryptor.user.js
@@ -18,6 +19,17 @@
 
 (function() {
     'use strict';
+
+    // Blocklist: do not run on the official hosted site to avoid self-interference
+    try {
+        const BLOCK_HOST = 'https://matko802.github.io/UAAAEncryption/';
+        if (window.location.href && window.location.href.indexOf(BLOCK_HOST) === 0) {
+            // Abort early
+            return;
+        }
+    } catch (e) {
+        // If anything goes wrong, continue execution (fail-open)
+    }
 
     // --- Persisted settings ---
     const MODE_KEY = 'uaaa_default_mode';
