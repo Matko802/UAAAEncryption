@@ -1,216 +1,421 @@
 // ==UserScript==
 // @name         UAAADecryptor
 // @namespace    http://tampermonkey.net/
-// @version      0.0.3
+// @version      0.0.4
 // @description  UAAAEncryption custom encryptor/decryptor
 // @author       Matko802
 // @match        *://*/*
+// @icon         https://github.com/Matko802/UAAAEncryption/blob/main/Assets/logo/UA.png?raw=true
 // @require      https://raw.githubusercontent.com/Matko802/UAAAEncryption/main/uaaa-core.js
-// @grant        none
+// @grant        GM_registerMenuCommand
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @run-at       document-end
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const ENCRYPTOR_URL = 'https://matko802.github.io/UAAAEncryption/';
-    const CIPHER_REGEX = /(UAAA[UA]+)/gi;
-    const CRYPTO_KEY = '\x55\x41\x41\x41'; // "UAAA"
+    // --- Persisted settings ---
+    const MODE_KEY = 'uaaa_default_mode';
+    const INPUT_ENC_KEY = 'uaaa_encrypt_inputs';
 
-    // Inject styles for better UI
-    const styleSheet = document.createElement('style');
-    styleSheet.textContent = `
-        .uaaa-btn-group {
-            display: inline-flex;
-            gap: 6px;
-            margin-left: 8px;
-            vertical-align: middle;
-        }
-        .uaaa-btn {
-            padding: 4px 8px;
-            border-radius: 0;
-            font-size: 0.75em;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            cursor: pointer;
-            outline: none;
-            user-select: none;
-            border: 1px solid #cc3d4d;
-            background: #000;
-            color: #fff;
-            transition: 0.2s;
-        }
-        .uaaa-btn:hover {
-            background: #cc3d4d;
-            color: #000;
-        }
-        .uaaa-btn-active {
-            background: #cc3d4d;
-            color: #000;
-            border-color: #cc3d4d;
-        }
-        .uaaa-btn-success {
-            background: #2ed573;
-            color: #000;
-            border-color: #2ed573;
-        }
-        .uaaa-btn-error {
-            background: #ff3333;
-            color: #fff;
-            border-color: #ff3333;
-        }
-        .uaaa-link-btn {
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            border: 1px solid #505050;
-            background: #000;
-            color: #fff;
-            padding: 4px 8px;
-            font-size: 0.75em;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            transition: 0.2s;
-        }
-        .uaaa-link-btn:hover {
-            background: #505050;
-            color: #fff;
-        }
-    `;
-    document.head.appendChild(styleSheet);
+    let defaultMode = GM_getValue(MODE_KEY, 'encrypted');
+    let encryptInputsEnabled = GM_getValue(INPUT_ENC_KEY, false);
 
-    function convertTextNode(node) {
-        const text = node.nodeValue;
-        if (!text || !CIPHER_REGEX.test(text)) return;
+    function toggleDefaultMode() {
+        defaultMode = defaultMode === 'encrypted' ? 'decrypted' : 'encrypted';
+        GM_setValue(MODE_KEY, defaultMode);
+        registerMenu();
+        reprocessAllExisting();
+    }
 
-        setTimeout(() => {
-            const parent = node.parentNode;
-            if (!parent) return;
+    function toggleInputEncryption() {
+        encryptInputsEnabled = !encryptInputsEnabled;
+        GM_setValue(INPUT_ENC_KEY, encryptInputsEnabled);
+        registerMenu();
+        if (!encryptInputsEnabled) {
+            for (const state of inputStates.values()) {
+                if (state.btnGroup) state.btnGroup.style.display = 'none';
+            }
+        }
+    }
 
-            const tag = parent.tagName;
-            if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA' || tag === 'INPUT' || parent.contentEditable === 'true') {
-                return;
+    function registerMenu() {
+        GM_registerMenuCommand(
+            `UAAA: Default page mode -> ${defaultMode === 'encrypted' ? 'Encrypted' : 'Decrypted'}`,
+            toggleDefaultMode
+        );
+        GM_registerMenuCommand(
+            `UAAA: Encrypt-typed-input button -> ${encryptInputsEnabled ? 'ON' : 'OFF'}`,
+            toggleInputEncryption
+        );
+    }
+    registerMenu();
+
+    // --- Configuration ---
+    const CONFIG = {
+        url: 'https://matko802.github.io/UAAAEncryption/',
+        regex: /(UAAA[UA]+)/gi,
+        key: '\x55\x41\x41\x41', // "UAAA"
+        ignoreTags: new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'NOSCRIPT', 'CODE', 'PRE', 'CANVAS', 'SVG']),
+        inputSelector: 'input[type="text"], input[type="search"], input[type="url"], input[type="tel"], input:not([type]), textarea',
+        inputIdleMs: 2000
+    };
+
+    const nodeQueue = new Set();
+    let isProcessingQueue = false;
+    const instances = new Set();
+
+    // Tracks text mutations caused by our own script so we don't trigger infinite loops
+    const ourInternalMutations = new WeakSet();
+
+    // --- UI & Styling ---
+    function injectStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            :root {
+                --uaaa-bg: #000000;
+                --uaaa-text: #ffffff;
+                --uaaa-primary: #cc3d4d;
+                --uaaa-success: #2ed573;
+                --uaaa-error: #ff3333;
+                --uaaa-border: #505050;
+            }
+            .uaaa-btn-group {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                margin: 0 6px;
+                vertical-align: middle;
+                user-select: none;
+            }
+            .uaaa-btn {
+                padding: 2px 8px;
+                border-radius: 0px;
+                font-size: 0.75em;
+                font-family: 'Courier New', Courier, monospace;
+                font-weight: bold;
+                cursor: pointer;
+                outline: none;
+                border: 1px solid var(--uaaa-primary);
+                background: var(--uaaa-bg);
+                color: var(--uaaa-text);
+                transition: all 0.2s ease-in-out;
+                text-decoration: none;
+                line-height: 1.2;
+            }
+            .uaaa-btn:hover {
+                background: var(--uaaa-primary);
+                color: var(--uaaa-bg);
+            }
+            .uaaa-btn.success {
+                border-color: var(--uaaa-success);
+                background: var(--uaaa-success);
+                color: var(--uaaa-bg);
+            }
+            .uaaa-btn.error {
+                border-color: var(--uaaa-error);
+                background: var(--uaaa-error);
+                color: var(--uaaa-text);
+            }
+            .uaaa-btn.link {
+                border-color: var(--uaaa-border);
+            }
+            .uaaa-btn.link:hover {
+                background: var(--uaaa-border);
+                color: var(--uaaa-text);
+            }
+            .uaaa-input-btn-group {
+                display: none;
+            }
+            .uaaa-input-btn-group.visible {
+                display: inline-flex;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function reprocessAllExisting() {
+        for (const instance of instances) {
+            instance.applyMode(defaultMode);
+        }
+    }
+
+    // --- Core Processing Logic ---
+    function processTextNode(node) {
+        if (!node.nodeValue) return;
+
+        const parent = node.parentNode;
+        if (!parent || parent.isContentEditable || CONFIG.ignoreTags.has(parent.tagName)) {
+            return;
+        }
+
+        if (!node.nodeValue.includes('UAAA')) {
+            return;
+        }
+
+        CONFIG.regex.lastIndex = 0;
+        const match = CONFIG.regex.exec(node.nodeValue);
+
+        if (!match) return;
+
+        // FIX: Clean up any old UAAA buttons in this bubble to prevent duplicates
+        // when React rerenders or expands the text.
+        const oldUIs = parent.querySelectorAll('.uaaa-message-ui');
+        oldUIs.forEach(ui => ui.remove());
+
+        const cipherText = match[0];
+        const cipherBlob = cipherText.replace(/\s/g, '').toUpperCase();
+        let decryptedCache = null;
+        let isDecrypted = false;
+
+        const container = document.createElement('span');
+        container.className = 'uaaa-btn-group uaaa-message-ui';
+        container.contentEditable = "false";
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'uaaa-btn';
+        toggleBtn.textContent = 'Decrypt';
+        toggleBtn.title = 'Decrypt cipher text';
+
+        const infoBtn = document.createElement('a');
+        infoBtn.className = 'uaaa-btn link';
+        infoBtn.textContent = 'Info';
+        infoBtn.href = `${CONFIG.url}?m=dec&d=${encodeURIComponent(cipherBlob)}`;
+        infoBtn.target = '_blank';
+        infoBtn.rel = 'noopener noreferrer';
+        infoBtn.title = 'Open in UAAAEncryption';
+
+        container.appendChild(toggleBtn);
+        container.appendChild(infoBtn);
+
+        // FIX: Append to the parent container instead of splitting the text node
+        parent.appendChild(container);
+
+        function doDecrypt() {
+            if (!decryptedCache) {
+                try {
+                    if (typeof _C !== 'function') throw new Error("Core API (_C) missing");
+                    decryptedCache = _C(cipherBlob, CONFIG.key, false);
+                } catch (err) {
+                    toggleBtn.textContent = 'Error';
+                    toggleBtn.className = 'uaaa-btn error';
+                    toggleBtn.title = err.message;
+                    return false;
+                }
             }
 
-            if (parent.querySelector('.uaaa-btn-group')) return;
+            ourInternalMutations.add(node);
+            // Seamlessly replace just the cipher string, leaving React's node intact
+            node.nodeValue = node.nodeValue.replace(cipherText, decryptedCache);
 
-            CIPHER_REGEX.lastIndex = 0;
-            const matches = text.match(CIPHER_REGEX);
-            if (!matches) return;
+            toggleBtn.textContent = 'Encrypt';
+            toggleBtn.className = 'uaaa-btn success';
+            toggleBtn.title = 'Re-encrypt text';
+            isDecrypted = true;
+            return true;
+        }
 
-            const cipherBlob = matches[0].replace(/\s/g, '').toUpperCase();
+        function doEncrypt() {
+            ourInternalMutations.add(node);
+            // Restore the exact cipher string
+            if (decryptedCache) {
+                node.nodeValue = node.nodeValue.replace(decryptedCache, cipherText);
+            }
 
-            const btnGroup = document.createElement('span');
-            btnGroup.className = 'uaaa-btn-group';
+            toggleBtn.textContent = 'Decrypt';
+            toggleBtn.className = 'uaaa-btn';
+            toggleBtn.title = 'Decrypt cipher text';
+            isDecrypted = false;
+        }
 
-            const decBtn = document.createElement('button');
-            decBtn.className = 'uaaa-btn';
-            decBtn.innerText = '🔓';
-            decBtn.title = 'Decrypt cipher text';
+        toggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!isDecrypted) doDecrypt();
+            else doEncrypt();
+        });
 
-            const infoBtn = document.createElement('a');
-            infoBtn.className = 'uaaa-link-btn';
-            infoBtn.innerText = 'ℹ️';
-            infoBtn.href = `${ENCRYPTOR_URL}?m=dec&d=${encodeURIComponent(cipherBlob)}`;
-            infoBtn.target = '_blank';
-            infoBtn.rel = 'noopener noreferrer';
-            infoBtn.title = 'Open in UAAAEncryption';
+        if (defaultMode === 'decrypted') {
+            doDecrypt();
+        }
 
-            let decryptedCache = null;
-            let isDecrypted = false;
-            const originalTextValue = node.nodeValue;
+        const instance = {
+            get isDecrypted() { return isDecrypted; },
+            applyMode(mode) {
+                if (mode === 'decrypted' && !isDecrypted) doDecrypt();
+                else if (mode === 'encrypted' && isDecrypted) doEncrypt();
+            }
+        };
+        instances.add(instance);
+    }
 
-            decBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+    // --- Performance Queuing ---
+    function processQueue() {
+        const startTime = performance.now();
 
-                if (!isDecrypted) {
-                    if (!decryptedCache) {
-                        try {
-                            if (typeof _C !== 'function') {
-                                decBtn.innerText = '⚠️';
-                                decBtn.className = 'uaaa-btn uaaa-btn-error';
-                                decBtn.title = 'Decryption engine failed to load';
-                                console.error("UAAA API Error: _C function not loaded from GitHub.");
-                                return;
-                            }
-                            decryptedCache = _C(cipherBlob, CRYPTO_KEY, false);
-                        } catch (err) {
-                            decBtn.innerText = '❌';
-                            decBtn.className = 'uaaa-btn uaaa-btn-error';
-                            decBtn.title = 'Invalid cipher text';
-                            console.error("UAAA Decryption Error:", err.message);
-                            return;
-                        }
-                    }
-                    if (decryptedCache) {
-                        node.nodeValue = originalTextValue.replace(matches[0], decryptedCache);
-                        decBtn.innerText = '✓';
-                        decBtn.className = 'uaaa-btn uaaa-btn-success';
-                        decBtn.title = 'Click to re-encrypt';
-                        setTimeout(() => {
-                            if (isDecrypted) {
-                                decBtn.innerText = '🔒';
-                                decBtn.className = 'uaaa-btn uaaa-btn-active';
-                                decBtn.title = 'Re-encrypt to hide';
-                            }
-                        }, 1500);
-                        isDecrypted = true;
-                    }
-                } else {
-                    node.nodeValue = originalTextValue;
-                    decBtn.innerText = '🔓';
-                    decBtn.className = 'uaaa-btn';
-                    decBtn.title = 'Decrypt cipher text';
-                    isDecrypted = false;
+        for (const node of nodeQueue) {
+            if (performance.now() - startTime > 15) break;
+
+            nodeQueue.delete(node);
+            processTextNode(node);
+        }
+
+        if (nodeQueue.size > 0) {
+            window.requestAnimationFrame(processQueue);
+        } else {
+            isProcessingQueue = false;
+        }
+    }
+
+    function enqueueNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            nodeQueue.add(node);
+        } else if (node.nodeType === Node.ELEMENT_NODE && !CONFIG.ignoreTags.has(node.tagName)) {
+            const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null, false);
+            let currentNode;
+            while ((currentNode = walker.nextNode())) {
+                nodeQueue.add(currentNode);
+            }
+        }
+
+        if (!isProcessingQueue && nodeQueue.size > 0) {
+            isProcessingQueue = true;
+            window.requestAnimationFrame(processQueue);
+        }
+    }
+
+    // --- Encrypt-button-on-idle for form fields ---
+    const inputStates = new WeakMap();
+
+    function isEligibleInput(el) {
+        return el && el.matches && el.matches(CONFIG.inputSelector) && !el.readOnly && !el.disabled;
+    }
+
+    function getOrCreateState(el) {
+        let state = inputStates.get(el);
+        if (state) return state;
+
+        const container = document.createElement('span');
+        container.className = 'uaaa-btn-group uaaa-input-btn-group';
+        container.contentEditable = "false";
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'uaaa-btn';
+        btn.textContent = 'Encrypt';
+        btn.title = 'Encrypt this field with UAAA';
+
+        container.appendChild(btn);
+
+        if (el.nextSibling) {
+            el.parentNode.insertBefore(container, el.nextSibling);
+        } else {
+            el.parentNode.appendChild(container);
+        }
+
+        state = { plaintext: '', isEncrypted: false, btnGroup: container, btn, timer: null };
+        inputStates.set(el, state);
+
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (!state.isEncrypted) {
+                const plaintext = el.value;
+                if (!plaintext) return;
+                try {
+                    if (typeof _C !== 'function') throw new Error("Core API (_C) missing");
+                    const cipher = _C(plaintext, CONFIG.key, true);
+                    state.plaintext = plaintext;
+                    el.value = cipher;
+                    state.isEncrypted = true;
+                    btn.textContent = 'Decrypt';
+                    btn.className = 'uaaa-btn success';
+                    btn.title = 'Restore original text';
+                } catch (err) {
+                    btn.textContent = 'Error';
+                    btn.className = 'uaaa-btn error';
+                    console.error("[UAAA] Failed:", err.message);
                 }
-            });
-
-            btnGroup.appendChild(decBtn);
-            btnGroup.appendChild(infoBtn);
-
-            if (node.nextSibling) {
-                parent.insertBefore(btnGroup, node.nextSibling);
             } else {
-                parent.appendChild(btnGroup);
+                el.value = state.plaintext;
+                state.isEncrypted = false;
+                btn.textContent = 'Encrypt';
+                btn.className = 'uaaa-btn';
             }
-        }, 0);
+            el.focus();
+        });
+
+        return state;
     }
 
-    function parseDOMTree(root) {
-        if (!root) return;
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
-        const textNodes = [];
-        while (walker.nextNode()) {
-            textNodes.push(walker.currentNode);
-        }
-        textNodes.forEach(convertTextNode);
+    function hideButton(state) {
+        state.btnGroup.classList.remove('visible');
     }
 
-    parseDOMTree(document.body);
+    function showButton(state, el) {
+        if (!el.value) return;
+        state.btnGroup.classList.add('visible');
+    }
 
-    let mutationTimeout;
-    const dynamicObserver = new MutationObserver((records) => {
-        // Debounce DOM updates to improve performance
-        clearTimeout(mutationTimeout);
-        mutationTimeout = setTimeout(() => {
-            for (const record of records) {
-                if (record.type === 'characterData') {
-                    convertTextNode(record.target);
-                } else if (record.type === 'childList') {
-                    record.addedNodes.forEach(addedNode => {
-                        if (addedNode.nodeType === Node.ELEMENT_NODE) {
-                            parseDOMTree(addedNode);
-                        } else if (addedNode.nodeType === Node.TEXT_NODE) {
-                            convertTextNode(addedNode);
-                        }
-                    });
+    document.addEventListener('input', (e) => {
+        if (!encryptInputsEnabled || !isEligibleInput(e.target)) return;
+        const el = e.target;
+        const state = getOrCreateState(el);
+
+        clearTimeout(state.timer);
+        hideButton(state);
+
+        if (state.isEncrypted) state.isEncrypted = false;
+
+        state.timer = setTimeout(() => showButton(state, el), CONFIG.inputIdleMs);
+    }, true);
+
+    document.addEventListener('focusin', (e) => {
+        if (!encryptInputsEnabled || !isEligibleInput(e.target)) return;
+        const el = e.target;
+        const state = getOrCreateState(el);
+        clearTimeout(state.timer);
+        state.timer = setTimeout(() => showButton(state, el), CONFIG.inputIdleMs);
+    }, true);
+
+    document.addEventListener('focusout', (e) => {
+        if (!isEligibleInput(e.target)) return;
+        const state = inputStates.get(e.target);
+        if (!state) return;
+        clearTimeout(state.timer);
+    }, true);
+
+    // --- Initialization & Observation ---
+    injectStyles();
+    enqueueNode(document.body);
+
+    const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            if (mutation.type === 'characterData') {
+                const target = mutation.target;
+
+                // 1. Ignore mutations caused by our script replacing the text
+                if (ourInternalMutations.has(target)) {
+                    ourInternalMutations.delete(target);
+                    continue;
+                }
+
+                // 2. WhatsApp dynamically changed the text (e.g. user clicked Read More)
+                // Queue the node to be reprocessed so the script can hook into the new text
+                enqueueNode(target);
+
+            } else if (mutation.type === 'childList') {
+                for (const addedNode of mutation.addedNodes) {
+                    enqueueNode(addedNode);
                 }
             }
-        }, 50);
+        }
     });
 
-    dynamicObserver.observe(document.body, {
+    observer.observe(document.body, {
         childList: true,
         subtree: true,
         characterData: true
