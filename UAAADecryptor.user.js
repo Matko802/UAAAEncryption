@@ -34,7 +34,7 @@
     // --- Persisted settings ---
     const MODE_KEY = 'uaaa_default_mode';
     const SCRIPT_VERSION = '0.1.0';
-    const REMOTE_VERSION_URL = 'https://raw.githubusercontent.com/Matko802/UAAAEncryption/refs/heads/main/version.txt';
+    const REMOTE_INDEX_URL = 'https://raw.githubusercontent.com/Matko802/UAAAEncryption/refs/heads/main/index.html';
 
     let defaultMode = GM_getValue(MODE_KEY, 'encrypted');
 
@@ -53,11 +53,16 @@
         return 0;
     }
 
+    function extractVersionFromHTML(html) {
+        const match = html.match(/id=["']version-badge["'][^>]*>([^<]+)</i);
+        return match ? match[1].trim() : null;
+    }
+
     function checkRemoteVersion() {
-        return fetch(REMOTE_VERSION_URL, { cache: 'no-store' })
+        return fetch(REMOTE_INDEX_URL, { cache: 'no-store' })
             .then(response => response.text())
             .then(text => {
-                const remoteVersion = (text || '').trim();
+                const remoteVersion = extractVersionFromHTML(text);
                 if (!remoteVersion) return null;
                 if (compareVersions(remoteVersion, SCRIPT_VERSION) > 0) {
                     GM_registerMenuCommand(

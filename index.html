@@ -299,23 +299,24 @@
             }
         };
 
-        /* Site update checker: fetches remote version.txt and compares it against the local version badge.
+        /* Site update checker: fetches the hosted site HTML and compares the version badge.
            If a newer version is found, show a top-left notification with Refresh. */
         (function(){
-            const REMOTE_VERSION_URL = 'https://raw.githubusercontent.com/Matko802/UAAAEncryption/refs/heads/main/version.txt';
+            const REMOTE_INDEX_URL = 'https://raw.githubusercontent.com/Matko802/UAAAEncryption/refs/heads/main/index.html';
             function getLocalVersion(){ const el = document.getElementById('version-badge'); return el ? el.innerText.trim() : null; }
-            function showUpdateNotice(remoteVersion){ if(document.getElementById('_update_notice')) return; const d = document.createElement('div'); d.id = '_update_notice'; d.className = 'update-notice'; d.innerHTML = `<span>Update available: ${remoteVersion}</span><button id="_update_btn">Refresh</button><button id="_update_close" class="close">✕</button>`; document.body.appendChild(d);
+            function extractVersionFromHTML(html){ const m = html.match(/id=["']version-badge["'][^>]*>([^<]+)</i); return m ? m[1].trim() : null; }
+            function showUpdateNotice(remoteVersion){ if(document.getElementById('_update_notice')) return; const d = document.createElement('div'); d.id = '_update_notice'; d.className = 'update-notice'; d.innerHTML = `<span>Update available: ${remoteVersion}</span><button id="_update_btn">Refresh</button><button id="_update_close" class="close">Close</button>`; document.body.appendChild(d);
                 document.getElementById('_update_btn').addEventListener('click', function(){ try { location.reload(true); } catch(e){ location.reload(); } });
                 document.getElementById('_update_close').addEventListener('click', function(){ d.remove(); });
             }
-            function checkForUpdate(){ fetch(REMOTE_VERSION_URL, { cache: 'no-store' }).then(r => r.text()).then(t => { const remoteV = t.trim(); const localV = getLocalVersion(); if(remoteV && localV && remoteV !== localV) showUpdateNotice(remoteV); }).catch(() => {}); }
-            const css = `.update-notice{position:fixed;left:8px;top:8px;background:rgba(204,61,77,0.98);color:#fff;padding:8px 10px;border-radius:5px;display:flex;gap:8px;align-items:center;z-index:9999;font-family:'JetBrains Mono',monospace;font-weight:700} .update-notice button{background:#fff;color:#cc3d4d;border:none;padding:6px 8px;cursor:pointer;font-weight:700;border-radius:3px} .update-notice .close{background:transparent;color:#fff;border:none;cursor:pointer;font-weight:700;padding:4px 6px}`;
+            function checkForUpdate(){ fetch(REMOTE_INDEX_URL, { cache: 'no-store' }).then(r => r.text()).then(t => { const remoteV = extractVersionFromHTML(t); const localV = getLocalVersion(); if(remoteV && localV && remoteV !== localV) showUpdateNotice(remoteV); }).catch(() => {}); }
+            const css = `.update-notice{position:fixed;left:8px;top:8px;background:#0a0a0a;border:1px solid #cc3d4d;color:#fff;padding:12px 16px;display:flex;gap:12px;align-items:center;z-index:9999;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:0.8em;border-radius:0} .update-notice span{flex:1;white-space:nowrap} .update-notice button{background:#000;color:#cc3d4d;border:1px solid #cc3d4d;padding:8px 14px;cursor:pointer;font-weight:700;font-family:inherit;text-transform:uppercase;letter-spacing:1px;border-radius:0;transition:0.2s} .update-notice button:hover{background:#cc3d4d;color:#000} .update-notice .close{background:transparent;color:#666;border:none;cursor:pointer;font-weight:700;padding:4px 8px;font-size:1.1em;border-radius:0} .update-notice .close:hover{color:#fff}`;
             const s = document.createElement('style'); s.appendChild(document.createTextNode(css)); document.head.appendChild(s);
 
             // Run on load and poll periodically (every 60s)
             window.addEventListener('load', function(){ checkForUpdate(); setInterval(checkForUpdate, 60 * 1000); });
         })();
     </script>
-    <div id="version-badge">0.1.0</div>
+    <div id="version-badge">0.1.1</div>
 </body>
 </html>
