@@ -33,47 +33,8 @@
 
     // --- Persisted settings ---
     const MODE_KEY = 'uaaa_default_mode';
-    const SCRIPT_VERSION = '0.1.0';
-    const REMOTE_INDEX_URL = 'https://raw.githubusercontent.com/Matko802/UAAAEncryption/refs/heads/main/index.html';
 
     let defaultMode = GM_getValue(MODE_KEY, 'encrypted');
-
-    function parseVersion(value) {
-        return String(value || '0').split('.').map(part => parseInt(part, 10) || 0);
-    }
-
-    function compareVersions(a, b) {
-        const left = parseVersion(a);
-        const right = parseVersion(b);
-        const length = Math.max(left.length, right.length);
-        for (let i = 0; i < length; i++) {
-            const diff = (left[i] || 0) - (right[i] || 0);
-            if (diff !== 0) return diff;
-        }
-        return 0;
-    }
-
-    function extractVersionFromHTML(html) {
-        const match = html.match(/id=["']version-badge["'][^>]*>([^<]+)</i);
-        return match ? match[1].trim() : null;
-    }
-
-    function checkRemoteVersion() {
-        return fetch(REMOTE_INDEX_URL, { cache: 'no-store' })
-            .then(response => response.text())
-            .then(text => {
-                const remoteVersion = extractVersionFromHTML(text);
-                if (!remoteVersion) return null;
-                if (compareVersions(remoteVersion, SCRIPT_VERSION) > 0) {
-                    GM_registerMenuCommand(
-                        `UAAA: Update available → ${remoteVersion}`,
-                        () => window.open('https://github.com/Matko802/UAAAEncryption', '_blank', 'noopener,noreferrer')
-                    );
-                }
-                return remoteVersion;
-            })
-            .catch(() => null);
-    }
 
     function toggleDefaultMode() {
         defaultMode = defaultMode === 'encrypted' ? 'decrypted' : 'encrypted';
@@ -87,13 +48,8 @@
             `UAAA: Default page mode -> ${defaultMode === 'encrypted' ? 'Encrypted' : 'Decrypted'}`,
             toggleDefaultMode
         );
-        GM_registerMenuCommand(
-            `UAAA: Current version -> ${SCRIPT_VERSION}`,
-            () => {}
-        );
     }
     registerMenu();
-    checkRemoteVersion();
 
     // --- Configuration ---
     const CONFIG = {
