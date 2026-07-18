@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UAAADecryptor
 // @namespace    http://tampermonkey.net/
-// @version      0.0.8
+// @version      0.0.9
 // @description  UAAAEncryption custom encryptor/decryptor
 // @author       Matko802
 // @match        *://*/*
