@@ -7,6 +7,9 @@
 // @match        *://*/*
 // @icon         https://github.com/Matko802/UAAAEncryption/blob/main/Assets/logo/UA.png?raw=true
 // @require      https://raw.githubusercontent.com/Matko802/UAAAEncryption/main/uaaa-core.js
+// @updateURL    https://raw.githubusercontent.com/Matko802/UAAAEncryption/main/UAAADecryptor.user.js
+// @downloadURL  https://raw.githubusercontent.com/Matko802/UAAAEncryption/main/UAAADecryptor.user.js
+// @homepageURL  https://github.com/Matko802/UAAAEncryption
 // @grant        GM_registerMenuCommand
 // @grant        GM_setValue
 // @grant        GM_getValue
