@@ -45,7 +45,7 @@
         regex: /(UAAA[UA]+)/gi,
         key: '\x55\x41\x41\x41', // "UAAA"
         ignoreTags: new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'NOSCRIPT', 'CODE', 'PRE', 'CANVAS', 'SVG']),
-        inputSelector: 'input[type="text"], input[type="search"], input[type="url"], input[type="tel"], input:not([type]), textarea',
+        inputSelector: 'input[type="text"], input[type="search"], input[type="url"], input[type="tel"], input:not([type]), textarea, div[contenteditable="true"], [role="textbox"][contenteditable="true"]',
         inputIdleMs: 2000
     };
 
@@ -113,7 +113,12 @@
                 color: var(--uaaa-text);
             }
             .uaaa-input-btn-group {
+                position: absolute;
                 display: none;
+                align-items: center;
+                gap: 4px;
+                z-index: 999999;
+                pointer-events: auto;
             }
             .uaaa-input-btn-group.visible {
                 display: inline-flex;
@@ -326,14 +331,9 @@
         btn.title = 'Encrypt this field with UAAA';
 
         container.appendChild(btn);
+        document.body.appendChild(container);
 
-        if (el.nextSibling) {
-            el.parentNode.insertBefore(container, el.nextSibling);
-        } else {
-            el.parentNode.appendChild(container);
-        }
-
-        state = { plaintext: '', isEncrypted: false, btnGroup: container, btn, timer: null };
+        state = { plaintext: '', isEncrypted: false, btnGroup: container, btn, timer: null, anchor: el };
         inputStates.set(el, state);
 
         btn.addEventListener('click', (e) => {
@@ -369,13 +369,41 @@
         return state;
     }
 
-    function hideButton(state) {
-        state.btnGroup.classList.remove('visible');
+    function positionButton(state) {
+        const el = state.anchor;
+        if (!el || !document.body.contains(el)) return;
+
+        const rect = el.getBoundingClientRect();
+        const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+        const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+        state.btnGroup.style.visibility = 'hidden';
+        state.btnGroup.classList.add('visible');
+        state.btnGroup.style.display = 'inline-flex';
+        const width = state.btnGroup.offsetWidth;
+        const height = state.btnGroup.offsetHeight;
+
+        const left = Math.min(rect.right + scrollX - width, rect.left + scrollX + 10);
+        const top = Math.max(rect.top + scrollY - height - 6, scrollY + 6);
+
+        state.btnGroup.style.left = `${Math.max(left, scrollX + 6)}px`;
+        state.btnGroup.style.top = `${top}px`;
+        state.btnGroup.style.visibility = 'visible';
     }
 
     function showButton(state, el) {
-        if (!getElText(el)) return;
+        if (!getElText(el)) {
+            hideButton(state);
+            return;
+        }
+        state.anchor = el;
+        positionButton(state);
         state.btnGroup.classList.add('visible');
+    }
+
+    function hideButton(state) {
+        state.btnGroup.classList.remove('visible');
+        state.btnGroup.style.display = 'none';
     }
 
     document.addEventListener('input', (e) => {
@@ -410,6 +438,7 @@
         const state = inputStates.get(e.target);
         if (!state) return;
         clearTimeout(state.timer);
+        hideButton(state);
     }, true);
 
     // --- Initialization & Observation ---
