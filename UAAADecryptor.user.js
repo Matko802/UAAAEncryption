@@ -60,6 +60,7 @@
     function injectStyles() {
         const style = document.createElement('style');
         style.textContent = `
+            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
             :root {
                 --uaaa-bg: #000000;
                 --uaaa-text: #ffffff;
@@ -80,7 +81,7 @@
                 padding: 2px 8px;
                 border-radius: 0px;
                 font-size: 0.75em;
-                font-family: 'Courier New', Courier, monospace;
+                font-family: 'JetBrains Mono', Courier, monospace;
                 font-weight: bold;
                 cursor: pointer;
                 outline: none;

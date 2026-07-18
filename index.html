@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="https://github.com/Matko802/UAAAEncryption/blob/main/Assets/logo/UA.png?raw=true" type="image/png">
     <title>UAAA Encryptor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; padding: 0; background: #0a0a0a; color: #cc3d4d; font-family: 'Courier New', monospace; user-select: none; }
+        body { margin: 0; padding: 0; background: #000000; color: #cc3d4d; font-family: 'JetBrains Mono', monospace; user-select: none; }
         #_A { display: block; max-width: 600px; margin: 40px auto; padding: 20px; }
         textarea { width: 100%; min-height: 120px; height: auto; background: #000; color: #fff; border: 1px solid #333; padding: 10px; font-family: inherit; box-sizing: border-box; margin-bottom: 10px; outline: 0; word-break: break-all; overflow-y: hidden; resize: none; }
         textarea:focus { border-color: #cc3d4d; }
@@ -21,6 +24,9 @@
         .toggle-slider-thumb { position: absolute; top: 0; left: 0; width: 50%; height: 100%; background: #cc3d4d; border-radius: 0; transition: 0.3s; cursor: pointer; z-index: 1; }
         .toggle-slider.active .toggle-slider-thumb { left: 50%; }
         .slider-label { color: #cc3d4d; font-family: 'Courier New', monospace; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; font-size: 0.85em; display: none; }
+        .site-header { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 18px; }
+        .site-header img { height: 48px; width: auto; display: block; }
+        .site-header .site-title { color: #cc3d4d; font-size: 1.4em; font-weight: 700; letter-spacing: 2px; }
         .textarea-wrapper { position: relative; display: flex; align-items: stretch; gap: 0; border: 1px solid #333; background: #000; margin-bottom: 10px; }
         .textarea-wrapper:focus-within { border-color: #cc3d4d; }
         .textarea-wrapper textarea { border: none; margin: 0; padding: 10px; width: 100%; min-height: 120px; resize: none; box-sizing: border-box; }
@@ -32,8 +38,8 @@
         }
         .textarea-actions button {
             padding: 4px 8px;
-            min-width: 50px;
-            font-size: 0.75em;
+                min-width: 50px;
+                font-size: 0.75em;
             background: rgba(0, 0, 0, 0.5);
             border: none;
             color: #fff;
@@ -52,11 +58,28 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        /* Version badge */
+        #version-badge {
+            position: fixed;
+            right: 8px;
+            bottom: 6px;
+            font-size: 0.78em;
+            color: #666;
+            background: transparent;
+            pointer-events: none;
+            font-family: 'JetBrains Mono', monospace;
+            user-select: none;
+            opacity: 0.9;
+        }
     </style>
 </head>
 <body>
 
     <div id="_A">
+        <div class="site-header">
+            <img src="Assets/logo/UA.png" alt="UAAA logo">
+            <div class="site-title">UAAA Encryptor</div>
+        </div>
         <div class="slider-container">
             <div class="toggle-slider" id="_slider" onclick="_T()">
                 <div class="toggle-slider-labels">
@@ -93,6 +116,7 @@
         /* Default key used by the on-page UI and the public API */
         const _p = '\x55\x41\x41\x41';
         let _m = !0;
+        let ignoreClickUntil = 0;
 
         window.addEventListener('load', () => {
             document.getElementById('_2').value = '';
@@ -126,6 +150,7 @@
         }
 
         function _T() {
+            if (Date.now() < ignoreClickUntil) { ignoreClickUntil = 0; return; }
             _m = !_m;
             const slider = document.getElementById('_slider');
             if (_m) {
@@ -136,12 +161,14 @@
             _P();
         }
 
+        // Dragging disabled: slider uses click/tap only to toggle state.
+
         function _copyText(targetId, btn) {
             const value = document.getElementById(targetId).value;
             if (!value.trim()) return;
             navigator.clipboard.writeText(value).then(() => {
                 const originalText = btn.innerText;
-                btn.innerText = '✓';
+                btn.innerText = 'Copied!';
                 btn.style.color = '#2ed573';
                 btn.style.background = 'rgba(0, 0, 0, 0.5)';
                 setTimeout(() => { 
@@ -161,7 +188,7 @@
                 input.value = text;
                 input.dispatchEvent(new Event('input', { bubbles: true }));
                 const originalText = btn.innerText;
-                btn.innerText = '✓';
+                btn.innerText = 'Pasted!';
                 btn.style.color = '#2ed573';
                 btn.style.background = 'rgba(0, 0, 0, 0.5)';
                 setTimeout(() => { 
@@ -238,6 +265,27 @@
                 return `${base}?m=${mode === 'decrypt' ? 'dec' : 'enc'}&d=${encodeURIComponent(text)}`;
             }
         };
+
+        /* Site update checker: fetches raw index.html and compares version badge.
+           If a newer version is found, show a top-left notification with Refresh. */
+        (function(){
+            const REMOTE_INDEX_URL = 'https://raw.githubusercontent.com/Matko802/UAAAEncryption/refs/heads/main/index.html';
+            function getLocalVersion(){ const el = document.getElementById('version-badge'); return el ? el.innerText.trim() : null; }
+            function extractVersionFromHTML(html){ const m = html.match(/id=["']version-badge["'][^>]*>([^<]+)</i); return m ? m[1].trim() : null; }
+            function showUpdateNotice(remoteVersion){ if(document.getElementById('_update_notice')) return; const d = document.createElement('div'); d.id = '_update_notice'; d.className = 'update-notice'; d.innerHTML = `<span>Update available: ${remoteVersion}</span><button id="_update_btn">Refresh</button><button id="_update_close" class="close">✕</button>`; document.body.appendChild(d);
+                document.getElementById('_update_btn').addEventListener('click', function(){ try { location.reload(true); } catch(e){ location.reload(); } });
+                document.getElementById('_update_close').addEventListener('click', function(){ d.remove(); });
+            }
+            function checkForUpdate(){ fetch(REMOTE_INDEX_URL, { cache: 'no-store' }).then(r => r.text()).then(t => { const remoteV = extractVersionFromHTML(t); const localV = getLocalVersion(); if(remoteV && localV && remoteV !== localV) showUpdateNotice(remoteV); }).catch(() => {});
+            }
+            // add minimal styles for the notice
+            const css = `.update-notice{position:fixed;left:8px;top:8px;background:rgba(204,61,77,0.98);color:#fff;padding:8px 10px;border-radius:5px;display:flex;gap:8px;align-items:center;z-index:9999;font-family:'JetBrains Mono',monospace;font-weight:700} .update-notice button{background:#fff;color:#cc3d4d;border:none;padding:6px 8px;cursor:pointer;font-weight:700;border-radius:3px} .update-notice .close{background:transparent;color:#fff;border:none;cursor:pointer;font-weight:700;padding:4px 6px}`;
+            const s = document.createElement('style'); s.appendChild(document.createTextNode(css)); document.head.appendChild(s);
+
+            // Run on load and poll periodically (every 60s)
+            window.addEventListener('load', function(){ checkForUpdate(); setInterval(checkForUpdate, 60 * 1000); });
+        })();
     </script>
+    <div id="version-badge">0.1.0</div>
 </body>
 </html>
