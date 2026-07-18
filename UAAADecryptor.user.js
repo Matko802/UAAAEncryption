@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UAAADecryptor
 // @namespace    http://tampermonkey.net/
-// @version      0.0.4
+// @version      0.0.5
 // @description  UAAAEncryption custom encryptor/decryptor
 // @author       Matko802
 // @match        *://*/*
@@ -18,10 +18,8 @@
 
     // --- Persisted settings ---
     const MODE_KEY = 'uaaa_default_mode';
-    const INPUT_ENC_KEY = 'uaaa_encrypt_inputs';
 
     let defaultMode = GM_getValue(MODE_KEY, 'encrypted');
-    let encryptInputsEnabled = GM_getValue(INPUT_ENC_KEY, false);
 
     function toggleDefaultMode() {
         defaultMode = defaultMode === 'encrypted' ? 'decrypted' : 'encrypted';
@@ -30,25 +28,10 @@
         reprocessAllExisting();
     }
 
-    function toggleInputEncryption() {
-        encryptInputsEnabled = !encryptInputsEnabled;
-        GM_setValue(INPUT_ENC_KEY, encryptInputsEnabled);
-        registerMenu();
-        if (!encryptInputsEnabled) {
-            for (const state of inputStates.values()) {
-                if (state.btnGroup) state.btnGroup.style.display = 'none';
-            }
-        }
-    }
-
     function registerMenu() {
         GM_registerMenuCommand(
             `UAAA: Default page mode -> ${defaultMode === 'encrypted' ? 'Encrypted' : 'Decrypted'}`,
             toggleDefaultMode
-        );
-        GM_registerMenuCommand(
-            `UAAA: Encrypt-typed-input button -> ${encryptInputsEnabled ? 'ON' : 'OFF'}`,
-            toggleInputEncryption
         );
     }
     registerMenu();
@@ -290,7 +273,39 @@
     const inputStates = new WeakMap();
 
     function isEligibleInput(el) {
-        return el && el.matches && el.matches(CONFIG.inputSelector) && !el.readOnly && !el.disabled;
+        if (!el) return false;
+        if (el.matches && el.matches(CONFIG.inputSelector) && !el.readOnly && !el.disabled) return true;
+        // Many chat apps (WhatsApp Web, Discord, Telegram Web, etc.) use a
+        // contenteditable div as the compose box instead of a real <input>/<textarea>.
+        if (el.isContentEditable) return true;
+        return false;
+    }
+
+    // Reads the current text out of either a native form field or a contenteditable box.
+    function getElText(el) {
+        return el.isContentEditable ? el.innerText : el.value;
+    }
+
+    // Writes text back in a way that framework-controlled fields (React, etc.) actually notice.
+    function setElText(el, text) {
+        el.focus();
+        if (el.isContentEditable) {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            const inserted = document.execCommand && document.execCommand('insertText', false, text);
+            if (!inserted) {
+                el.textContent = text;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        } else {
+            const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+            const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+            nativeSetter.call(el, text);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+        }
     }
 
     function getOrCreateState(el) {
@@ -323,13 +338,13 @@
             e.stopPropagation();
 
             if (!state.isEncrypted) {
-                const plaintext = el.value;
+                const plaintext = getElText(el);
                 if (!plaintext) return;
                 try {
                     if (typeof _C !== 'function') throw new Error("Core API (_C) missing");
                     const cipher = _C(plaintext, CONFIG.key, true);
                     state.plaintext = plaintext;
-                    el.value = cipher;
+                    setElText(el, cipher);
                     state.isEncrypted = true;
                     btn.textContent = 'Decrypt';
                     btn.className = 'uaaa-btn success';
@@ -340,7 +355,7 @@
                     console.error("[UAAA] Failed:", err.message);
                 }
             } else {
-                el.value = state.plaintext;
+                setElText(el, state.plaintext);
                 state.isEncrypted = false;
                 btn.textContent = 'Encrypt';
                 btn.className = 'uaaa-btn';
@@ -356,25 +371,31 @@
     }
 
     function showButton(state, el) {
-        if (!el.value) return;
+        if (!getElText(el)) return;
         state.btnGroup.classList.add('visible');
     }
 
     document.addEventListener('input', (e) => {
-        if (!encryptInputsEnabled || !isEligibleInput(e.target)) return;
+        if (!isEligibleInput(e.target)) return;
         const el = e.target;
         const state = getOrCreateState(el);
 
         clearTimeout(state.timer);
         hideButton(state);
 
-        if (state.isEncrypted) state.isEncrypted = false;
+        if (state.isEncrypted) {
+            state.isEncrypted = false;
+            state.plaintext = '';
+            state.btn.textContent = 'Encrypt';
+            state.btn.className = 'uaaa-btn';
+            state.btn.title = 'Encrypt this field with UAAA';
+        }
 
         state.timer = setTimeout(() => showButton(state, el), CONFIG.inputIdleMs);
     }, true);
 
     document.addEventListener('focusin', (e) => {
-        if (!encryptInputsEnabled || !isEligibleInput(e.target)) return;
+        if (!isEligibleInput(e.target)) return;
         const el = e.target;
         const state = getOrCreateState(el);
         clearTimeout(state.timer);
