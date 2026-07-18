@@ -280,13 +280,17 @@
     // --- Encrypt-button-on-idle for form fields ---
     const inputStates = new WeakMap();
 
+    function getEditableHost(el) {
+        if (!el) return null;
+        if (el.isContentEditable) return el;
+        return el.closest ? el.closest('[contenteditable="true"]') : null;
+    }
+
     function isEligibleInput(el) {
         if (!el) return false;
-        if (el.matches && el.matches(CONFIG.inputSelector) && !el.readOnly && !el.disabled) return true;
-        // Many chat apps (WhatsApp Web, Discord, Telegram Web, etc.) use a
-        // contenteditable div as the compose box instead of a real <input>/<textarea>.
-        if (el.isContentEditable) return true;
-        return false;
+        const host = getEditableHost(el);
+        if (host) return !host.readOnly && !host.disabled;
+        return el.matches && el.matches(CONFIG.inputSelector) && !el.readOnly && !el.disabled;
     }
 
     // Reads the current text out of either a native form field or a contenteditable box.
@@ -317,7 +321,8 @@
     }
 
     function getOrCreateState(el) {
-        let state = inputStates.get(el);
+        const host = getEditableHost(el) || el;
+        let state = inputStates.get(host);
         if (state) return state;
 
         const container = document.createElement('span');
@@ -333,21 +338,26 @@
         container.appendChild(btn);
         document.body.appendChild(container);
 
-        state = { plaintext: '', isEncrypted: false, btnGroup: container, btn, timer: null, anchor: el };
-        inputStates.set(el, state);
+        state = { plaintext: '', isEncrypted: false, btnGroup: container, btn, timer: null, anchor: host, preventHide: false };
+        inputStates.set(host, state);
+
+        btn.addEventListener('pointerdown', () => {
+            state.preventHide = true;
+        });
 
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
+            state.preventHide = false;
 
             if (!state.isEncrypted) {
-                const plaintext = getElText(el);
+                const plaintext = getElText(host);
                 if (!plaintext) return;
                 try {
                     if (typeof _C !== 'function') throw new Error("Core API (_C) missing");
                     const cipher = _C(plaintext, CONFIG.key, true);
                     state.plaintext = plaintext;
-                    setElText(el, cipher);
+                    setElText(host, cipher);
                     state.isEncrypted = true;
                     btn.textContent = 'Decrypt';
                     btn.className = 'uaaa-btn success';
@@ -358,12 +368,12 @@
                     console.error("[UAAA] Failed:", err.message);
                 }
             } else {
-                setElText(el, state.plaintext);
+                setElText(host, state.plaintext);
                 state.isEncrypted = false;
                 btn.textContent = 'Encrypt';
                 btn.className = 'uaaa-btn';
             }
-            el.focus();
+            host.focus();
         });
 
         return state;
@@ -392,11 +402,12 @@
     }
 
     function showButton(state, el) {
-        if (!getElText(el)) {
+        const host = getEditableHost(el) || el;
+        if (!getElText(host)) {
             hideButton(state);
             return;
         }
-        state.anchor = el;
+        state.anchor = host;
         positionButton(state);
         state.btnGroup.classList.add('visible');
     }
@@ -408,7 +419,7 @@
 
     document.addEventListener('input', (e) => {
         if (!isEligibleInput(e.target)) return;
-        const el = e.target;
+        const el = getEditableHost(e.target) || e.target;
         const state = getOrCreateState(el);
 
         clearTimeout(state.timer);
@@ -427,7 +438,7 @@
 
     document.addEventListener('focusin', (e) => {
         if (!isEligibleInput(e.target)) return;
-        const el = e.target;
+        const el = getEditableHost(e.target) || e.target;
         const state = getOrCreateState(el);
         clearTimeout(state.timer);
         state.timer = setTimeout(() => showButton(state, el), CONFIG.inputIdleMs);
@@ -435,8 +446,10 @@
 
     document.addEventListener('focusout', (e) => {
         if (!isEligibleInput(e.target)) return;
-        const state = inputStates.get(e.target);
+        const el = getEditableHost(e.target) || e.target;
+        const state = inputStates.get(el);
         if (!state) return;
+        if (state.preventHide) return;
         clearTimeout(state.timer);
         hideButton(state);
     }, true);
