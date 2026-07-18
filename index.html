@@ -21,14 +21,37 @@
         .toggle-slider-thumb { position: absolute; top: 0; left: 0; width: 50%; height: 100%; background: #cc3d4d; border-radius: 0; transition: 0.3s; cursor: pointer; z-index: 1; }
         .toggle-slider.active .toggle-slider-thumb { left: 50%; }
         .slider-label { color: #cc3d4d; font-family: 'Courier New', monospace; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; font-size: 0.85em; display: none; }
-        .textarea-wrapper { position: relative; display: block; border: 1px solid #333; background: #000; margin-bottom: 10px; }
+        .textarea-wrapper { position: relative; display: flex; align-items: stretch; gap: 0; border: 1px solid #333; background: #000; margin-bottom: 10px; }
         .textarea-wrapper:focus-within { border-color: #cc3d4d; }
-        .textarea-wrapper textarea { border: none; margin-bottom: 0; }
-        .textarea-btn { position: absolute; bottom: 10px; padding: 6px 8px; font-size: 0.85em; background: rgba(0, 0, 0, 0.5); border: none; color: #fff; flex: none; letter-spacing: 0; text-transform: none; font-weight: bold; cursor: pointer; transition: 0.2s; user-select: none; }
-        .textarea-btn:hover { color: #000; background: #cc3d4d; }
-        .textarea-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        #_btnPaste { right: 10px; }
-        #_btnCopy { right: 10px; }
+        .textarea-wrapper textarea { border: none; margin: 0; padding: 10px; width: 100%; min-height: 120px; resize: none; box-sizing: border-box; }
+        .textarea-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 10px;
+        }
+        .textarea-actions button {
+            padding: 4px 8px;
+            min-width: 50px;
+            font-size: 0.75em;
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            color: #fff;
+            letter-spacing: 0;
+            text-transform: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            user-select: none;
+        }
+        .textarea-actions button:hover {
+            color: #000;
+            background: #cc3d4d;
+        }
+        .textarea-actions button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -46,11 +69,16 @@
         <div id="_S"></div>
         <div class="textarea-wrapper">
             <textarea id="_2" placeholder="Type or paste payload here..." autocomplete="off"></textarea>
-            <button id="_btnPaste" class="textarea-btn" onclick="_PST()">Paste</button>
+            <div class="textarea-actions">
+                <button id="_btnPasteInput" onclick="_pasteText('_2', this)">Paste</button>
+                <button id="_btnCopyInput" onclick="_copyText('_2', this)">Copy</button>
+            </div>
         </div>
         <div id="_textarea-wrapper" class="textarea-wrapper">
             <textarea id="_3" readonly placeholder="Live output will appear here..." autocomplete="off"></textarea>
-            <button id="_btnCopy" class="textarea-btn" onclick="_CP()" style="display: none;">Copy</button>
+            <div class="textarea-actions">
+                <button id="_btnCopy" onclick="_copyText('_3', this)" style="display: none;">Copy</button>
+            </div>
         </div>
     </div>
 
@@ -108,11 +136,10 @@
             _P();
         }
 
-        function _CP() {
-            let output = document.getElementById('_3').value;
-            if (!output.trim()) return;
-            const btn = document.getElementById('_btnCopy');
-            navigator.clipboard.writeText(output).then(() => {
+        function _copyText(targetId, btn) {
+            const value = document.getElementById(targetId).value;
+            if (!value.trim()) return;
+            navigator.clipboard.writeText(value).then(() => {
                 const originalText = btn.innerText;
                 btn.innerText = '✓';
                 btn.style.color = '#2ed573';
@@ -128,12 +155,11 @@
             });
         }
 
-        function _PST() {
+        function _pasteText(targetId, btn) {
             navigator.clipboard.readText().then(text => {
-                const input = document.getElementById('_2');
+                const input = document.getElementById(targetId);
                 input.value = text;
                 input.dispatchEvent(new Event('input', { bubbles: true }));
-                const btn = document.getElementById('_btnPaste');
                 const originalText = btn.innerText;
                 btn.innerText = '✓';
                 btn.style.color = '#2ed573';
